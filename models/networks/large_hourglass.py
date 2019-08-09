@@ -61,7 +61,7 @@ def test_fully_connected_shape():
 
 
 class residual(nn.Block):
-    def __init__(self, channels_out, channels_in, stride=1, with_bn=True, **kwargs):
+    def __init__(self, kernel_size, channels_out, channels_in, stride=1, with_bn=True, **kwargs):
         super(residual, self).__init__(**kwargs)
         with self.name_scope():
             self.conv1 = nn.Conv2D(channels_out, kernel_size=(3,3), strides=(stride, stride), padding=(1,1), in_channels=channels_in, use_bias=False)
@@ -72,8 +72,8 @@ class residual(nn.Block):
 
             self.skip = nn.Sequential() 
             if stride != 1 or channels_in != channels_out:
-                self.skip.add( nn.Conv2D(channels_out, kernel_size=(1,1), use_bias=False),
-                                nn.BatchNorm(in_channels= channels_out)
+                self.skip.add( nn.Conv2D(channels_out, kernel_size=(1,1), strides=(stride, stride), use_bias=False),
+                               nn.BatchNorm(in_channels= channels_out)
                 )
 
     def forward(self, X):
@@ -89,7 +89,7 @@ class residual(nn.Block):
 
 
 def test_residual():
-    blk = residual(channels_out=32, channels_in=64)
+    blk = residual(kernel_size=3, channels_out=32, channels_in=64)
     blk.initialize()
     X   = nd.random.uniform(shape=(1, 64, 128, 128))
     Y   = blk(X)
@@ -153,8 +153,8 @@ def make_merge_layer():
     return MergeUp()
 
 def make_pool_layer():
-    #return nn.MaxPool2D(pool_size=2)
-    return nn.Sequential()
+    return nn.MaxPool2D(pool_size=2)
+    #return nn.Sequential()
 
 def make_unpool_layer():
     return bilinear_upsample(scale_factor=2)
@@ -166,7 +166,7 @@ def make_keypoint_layer(channels_out, channels_intermediate, channels_in):
     return sequential
 
 def make_inter_layer(channels):
-    return residual(channels, channels)
+    return residual(3, channels, channels)
 
 def make_conv_layer(channels_out, channels_in):
     return convolution(3, channels_out, channels_in)
@@ -193,6 +193,7 @@ class  keypoint_struct(nn.Block):
         super(keypoint_struct, self).__init__()
 
         self.level = level
+        print("\t Level({})".format(self.level), dims)
 
         curr_num_blocks = num_blocks[0]
         next_num_blocks = num_blocks[1]
@@ -201,7 +202,7 @@ class  keypoint_struct(nn.Block):
         next_dim = dims[1]
 
         with self.name_scope():
-            self.up1  = make_up_layer(3, curr_dim, curr_dim, curr_num_blocks, layer=layer, **kwargs)
+            self.up1  = make_up_layer(kernel_size=3, channels_out=curr_dim, channels_in=curr_dim, num_modules=curr_num_blocks, layer=layer, **kwargs)
             self.max1 = make_pool_layer()
             self.low1 = make_hg_layer(3, next_dim, curr_dim, curr_num_blocks, layer=layer, **kwargs)
             self.low2 = keypoint_struct(
@@ -223,8 +224,29 @@ class  keypoint_struct(nn.Block):
         low2 = self.low2(low1)
         low3 = self.low3(low2)
         up2  = self.up2(low3)
+        """
+        print("X shape:", X.shape)
+        print("up1 shape:", up1.shape)
+        print("max1 shape:", max1.shape)
+        print("low1 shape:", low1.shape)
+        print("low2 shape:", low2.shape)
+        print("low3 shape:", low3.shape)
+        print("up2 shape:", up2.shape)
+        """
         return self.merge(up1, up2)
 
+
+def test_keypoint_struct():
+    level       = 5
+    channels    = [256, 256, 384, 384, 384, 512]
+    num_blocks  = [2, 2, 2, 2, 2, 4]
+
+    blk = keypoint_struct(level, channels, num_blocks)
+    blk.initialize()
+    X   = nd.random.uniform(shape=(1, 256, 384, 384))
+    Y   = blk(X)
+    print("\t Input shape: ", X.shape)
+    print("\t output shape:", Y.shape)
         
 """
 4. Stacked Hourglass Network
@@ -248,13 +270,18 @@ class stacked_hourglass(nn.Block):
         
         curr_dim = dims[0]
         
-        with self.name_scope():
-            self.pre = nn.Sequential(
-                convolution(7, 128, 3, strides=2),
-                residual(3, 256, 128, strides=2)
-            ) if pre is None else pre
+        if pre is None: 
+            self.pre = nn.Sequential()
+            with self.name_scope():
+                self.pre.add(
+                    convolution(7, 128, 3, strides=2),
+                    residual(3, 256, 128, stride=2)
+                )
+        else:
+            self.pre = pre
 
-        self.kpts = nn.HybridSequential()
+        #self.kpts = nn.HybridSequential()
+        self.kpts = nn.Sequential()
         with self.name_scope():
             for _ in range(num_stacks):
                 self.kpts.add(
@@ -269,44 +296,49 @@ class stacked_hourglass(nn.Block):
                     )
                 )
         
-        self.convs = nn.HybridSequential()
+        #self.convs = nn.HybridSequential()
+        self.convs = nn.Sequential()
         with self.name_scope():
             for _ in range(num_stacks):
                 self.convs.add(
                     make_conv_layer(conv_dim, curr_dim)
                 )
         
-        self.inters = nn.HybridSequential()
+        #self.inters = nn.HybridSequential()
+        self.inters = nn.Sequential()
         with self.name_scope():
             for _ in range(num_stacks):
                 self.inters.add(
                     make_inter_layer(curr_dim)
                 )
 
-        self.inters_ = nn.HybridSequential()
+        #self.inters_ = nn.HybridSequential()
+        self.inters_ = nn.Sequential()
         with self.name_scope():
             for _ in range(num_stacks-1):
-                self.inters_.add(
-                    nn.Sequential(
-                        nn.Conv2D(curr_dim, (1,1), use_bias=False, in_channels=conv_dim),
-                        nn.BatchNorm()
-                    )
+                seq = nn.Sequential()
+                seq.add(
+                    nn.Conv2D(curr_dim, (1,1), use_bias=False, in_channels=conv_dim),
+                    nn.BatchNorm()
                 )
+                self.inters_.add(seq)
         
-        self.convs_ = nn.HybridSequential()
+        #self.convs_ = nn.HybridSequential()
+        self.convs_ = nn.Sequential()
         with self.name_scope():
             for _ in range(num_stacks-1):
-                self.convs_.add(
-                    nn.Sequential(
-                        nn.Conv2D(curr_dim, (1,1), use_bias=False, in_channels=conv_dim),
-                        nn.BatchNorm()
-                    )
+                seq = nn.Sequential()
+                seq.add(
+                    nn.Conv2D(curr_dim, (1,1), use_bias=False, in_channels=conv_dim),
+                    nn.BatchNorm()
                 )
+                self.convs_.add(seq)
         
         # keypoint heatmaps
         for head in heads.keys():
             if "hm" in head:
-                module = nn.HybridSequential()
+                #module = nn.HybridSequential()
+                module = nn.Sequential()
                 with self.name_scope():
                     for _ in range(num_stacks):
                         module.add(
@@ -317,7 +349,8 @@ class stacked_hourglass(nn.Block):
                 #for heat in self.__getattr__(head):
                     heat[-1].bias.data.fill_(-2.19)
             else:
-                module = nn.HybridSequential()
+                #module = nn.HybridSequential()
+                module = nn.Sequential()
                 with self.name_scope():
                     for _ in range(num_stacks):
                         module.add(
@@ -327,16 +360,17 @@ class stacked_hourglass(nn.Block):
         
     def forward(self, img):
         inter = self.pre(img)
+        print("\t inter shape: ", inter.shape)
         outs = []
 
         for ind in range(self.num_stacks):
             kp_, conv_ = self.kpts[ind], self.convs[ind]
             kp = kp_(inter)
             conv = conv_(kp)
+            print("\t conv shape: ", conv.shape)
 
             out = {}
             for head in self.heads:
-                #layer = self.__getattr__(head)[ind]
                 layer = self.__getattribute__(head)[ind]
                 y = layer(conv)
                 out[head] = y
@@ -346,8 +380,22 @@ class stacked_hourglass(nn.Block):
                 inter = self.inters_[ind](inter) + self.convs_[ind](conv)
                 inter = nd.relu(inter)
                 inter = self.inters[ind](inter)
+                print("\t inter shape: ", inter.shape)
         return outs
 
+def test_stacked_hourglass():
+    level       = 5
+    channels    = [256, 256, 384, 384, 384, 512]
+    num_blocks  = [2, 2, 2, 2, 2, 4]
+    num_stacks  = 2
+    heads       = {}
+
+    blk = stacked_hourglass(level, num_stacks, channels, num_blocks, heads)
+    blk.initialize()
+    X   = nd.random.uniform(shape=(1, 3, 256, 256))
+    Y   = blk(X)
+    print("\t Input shape: ", X.shape)
+    print("\t output shape:", Y)
 
 """
 5. Network with specifications
@@ -368,7 +416,7 @@ class HourglassNet(stacked_hourglass):
 
 
 """
-6. Constructor
+6. Constructor & interface for outside call
 """
 def get_large_hourglass_net(heads):
     model = HourglassNet(heads, 2)
@@ -395,7 +443,9 @@ def test_all():
              test_fully_connected_shape, 
              test_residual, 
              test_bilinear_upsample,
-             test_MergeUp
+             test_MergeUp,
+             test_keypoint_struct,
+             test_stacked_hourglass
              ]
     for func in funcs:
         print("Testing routine: {}".format(func.__name__))
