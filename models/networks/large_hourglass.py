@@ -32,6 +32,7 @@ def test_convolution_shape():
     blk.initialize()
     X = nd.random.uniform(shape=(1, 64, 128, 128))
     Y = blk(X)
+    print("\t Input shape: ", X.shape)
     print("\t output shape:", Y.shape)
 
 
@@ -55,6 +56,7 @@ def test_fully_connected_shape():
     blk.initialize()
     X   = nd.random.uniform(shape=(1, 2, 32, 32))
     Y   = blk(X)
+    print("\t Input shape: ", X.shape)
     print("\t output shape:", Y.shape)
 
 
@@ -70,8 +72,7 @@ class residual(nn.Block):
 
             self.skip = nn.Sequential() 
             if stride != 1 or channels_in != channels_out:
-                with self.name_scope():
-                    self.skip.add( nn.Conv2D(channels_out, kernel_size=(1,1), use_bias=False),
+                self.skip.add( nn.Conv2D(channels_out, kernel_size=(1,1), use_bias=False),
                                 nn.BatchNorm(in_channels= channels_out)
                 )
 
@@ -92,16 +93,28 @@ def test_residual():
     blk.initialize()
     X   = nd.random.uniform(shape=(1, 64, 128, 128))
     Y   = blk(X)
+    print("\t Input shape: ", X.shape)
     print("\t output shape:", Y.shape)
 
 
 class bilinear_upsample(nn.Block):
     def __init__(self, scale_factor=2, **kwargs):
         super(bilinear_upsample, self).__init__(**kwargs)
-        self.scale_factor = 2
+        self.scale_factor = scale_factor
     
     def forward(self, X):
-        return nd.UpSampling(X, scale=2, sample_type='bilinear')
+        #return nd.UpSampling(X, scale= self.scale_factor, num_filter = 2, sample_type='bilinear')
+        height, width = X.shape[2:4]
+        return nd.contrib.BilinearResize2D(X, height= height*self.scale_factor, width=width*self.scale_factor)
+
+
+def test_bilinear_upsample():
+    blk = bilinear_upsample(scale_factor=2)
+    blk.initialize()
+    X   = nd.random.uniform(shape=(1, 2, 128, 128))
+    Y   = blk(X)
+    print("\t Input shape: ", X.shape)
+    print("\t output shape:", Y.shape)
 
 """
 2. Utils to re-use basic blocks; Factories for repetitive computations
@@ -124,6 +137,17 @@ def make_repeat_layers_reverse(kernel_size, channels_out, channels_in, num_modul
 class MergeUp(nn.Block):
     def forward(self, up1, up2):
         return up1 + up2
+
+def test_MergeUp():
+    blk = MergeUp()
+    blk.initialize()
+    X1   = nd.random.uniform(shape=(1, 64, 128, 128))
+    X2   = nd.random.uniform(shape=(1, 64, 128, 128))
+    Y   = blk(X1, X2)
+    print("\t Input_1 shape: ", X1.shape)
+    print("\t Input_2 shape: ", X2.shape)
+    print("\t output shape:", Y.shape)
+
 
 def make_merge_layer():
     return MergeUp()
@@ -203,7 +227,7 @@ class  keypoint_struct(nn.Block):
 
         
 """
-4. Stacked Houglass Network
+4. Stacked Hourglass Network
 """
 class stacked_hourglass(nn.Block):
     def __init__(self, level, num_stacks, 
@@ -252,11 +276,17 @@ class stacked_hourglass(nn.Block):
                     make_conv_layer(conv_dim, curr_dim)
                 )
         
-
         self.inters = nn.HybridSequential()
         with self.name_scope():
-            for _ in range(num_stacks-1):
+            for _ in range(num_stacks):
                 self.inters.add(
+                    make_inter_layer(curr_dim)
+                )
+
+        self.inters_ = nn.HybridSequential()
+        with self.name_scope():
+            for _ in range(num_stacks-1):
+                self.inters_.add(
                     nn.Sequential(
                         nn.Conv2D(curr_dim, (1,1), use_bias=False, in_channels=conv_dim),
                         nn.BatchNorm()
@@ -276,7 +306,73 @@ class stacked_hourglass(nn.Block):
         # keypoint heatmaps
         for head in heads.keys():
             if "hm" in head:
-                
+                module = nn.HybridSequential()
+                with self.name_scope():
+                    for _ in range(num_stacks):
+                        module.add(
+                            make_heat_layer(output_channels=heads[head], channels_intermediate=curr_dim, channels_in=conv_dim)
+                        )
+                self.__setattr__(head, module)
+                for heat in self.__getattribute__(head):
+                #for heat in self.__getattr__(head):
+                    heat[-1].bias.data.fill_(-2.19)
+            else:
+                module = nn.HybridSequential()
+                with self.name_scope():
+                    for _ in range(num_stacks):
+                        module.add(
+                            make_regress_layer(output_channels=heads[head], channels_intermediate=curr_dim, channels_in=conv_dim)
+                        )
+                self.__setattr__(head, module)
+        
+    def forward(self, img):
+        inter = self.pre(img)
+        outs = []
+
+        for ind in range(self.num_stacks):
+            kp_, conv_ = self.kpts[ind], self.convs[ind]
+            kp = kp_(inter)
+            conv = conv_(kp)
+
+            out = {}
+            for head in self.heads:
+                #layer = self.__getattr__(head)[ind]
+                layer = self.__getattribute__(head)[ind]
+                y = layer(conv)
+                out[head] = y
+            outs.append(out)
+
+            if ind < self.num_stacks - 1:
+                inter = self.inters_[ind](inter) + self.convs_[ind](conv)
+                inter = nd.relu(inter)
+                inter = self.inters[ind](inter)
+        return outs
+
+
+"""
+5. Network with specifications
+"""
+class HourglassNet(stacked_hourglass):
+    def __init__(self, heads, num_stacks=2):
+        level       = 5
+        channels    = [256, 256, 384, 384, 512]
+        num_blocks  = [2, 2, 2, 2, 2, 4]
+
+        super(HourglassNet, self).__init__(
+            level, num_stacks, channels, num_blocks, heads,
+            make_pool_layer = make_pool_layer,
+            make_hg_layer = make_hg_layer,
+            kp_layer= residual,
+            conv_dim= 256
+        )
+
+
+"""
+6. Constructor
+"""
+def get_large_hourglass_net(heads):
+    model = HourglassNet(heads, 2)
+    return model
 
 
 
@@ -284,9 +380,7 @@ class stacked_hourglass(nn.Block):
 
 
 
-
-
-
+# test utils
 def peek_network(net, input_shape=(224, 224)):
     w, h = input_shape
     X = nd.random.uniform(shape=(1,1,w,h))
@@ -297,14 +391,19 @@ def peek_network(net, input_shape=(224, 224)):
     return
 
 def test_all():
-    funcs = [test_convolution_shape, test_fully_connected_shape, test_residual]
+    funcs = [test_convolution_shape, 
+             test_fully_connected_shape, 
+             test_residual, 
+             test_bilinear_upsample,
+             test_MergeUp
+             ]
     for func in funcs:
         print("Testing routine: {}".format(func.__name__))
         func()
 
 
 if __name__ == "__main__":
-    #test_all()
+    test_all()
 
-    sequential = make_repeat_layers(1,3,3,1,convolution)
-    print(sequential)
+    #sequential = make_repeat_layers(1,3,3,1,convolution)
+    #print(sequential)
