@@ -1,12 +1,18 @@
-from .networks.large_hourglass import get_large_hourglass_net
+from networks.large_hourglass import get_large_hourglass_net
 
 _model_factory = {
     'hourglass': get_large_hourglass_net,
 }
 
 
-def create_mode():
-    return
+def create_mode(arch, heads, head_conv_channels):
+    ind = arch.find('_')
+    num_layers = int(arch[ind+1:]) if '_' in arch else 0
+    arch = arch[:ind] if '_' in arch else arch
+
+    get_model_func = _model_factory[arch]
+    model = get_model_func(num_layers=num_layers, heads=heads, head_conv=head_conv_channels)
+    return model
 
 def load_model():
     return
