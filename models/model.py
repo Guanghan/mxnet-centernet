@@ -5,7 +5,7 @@ _model_factory = {
 }
 
 
-def create_mode(arch, heads, head_conv_channels):
+def create_model(arch, heads, head_conv_channels):
     ind = arch.find('_')
     num_layers = int(arch[ind+1:]) if '_' in arch else 0
     arch = arch[:ind] if '_' in arch else arch
