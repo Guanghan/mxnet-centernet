@@ -36,7 +36,7 @@ class BaseDetector(object):
         self.pause = True
 
 
-    def pre_preprocess(self, image, scale, meta=None):
+    def pre_process(self, image, scale, meta=None):
         height, width = image.shape[0:2]
         new_height = int(height * scale)
         new_width  = int(width * scale)
