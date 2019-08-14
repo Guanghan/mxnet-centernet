@@ -25,7 +25,7 @@ class BaseDetector(object):
         self.model = create_model(options.arch, options.heads, options.head_conv_channels)
         #self.model = load_model(self.model, options.load_model)
         self.model = self.model.as_in_context(self.ctx)
-        self.model.eval()
+        #self.model.eval()
 
         self.mean = np.array(options.mean, dtype=np.float32).reshape(1, 1, 3)
         self.std = np.array(options.std, dtype=np.float32).reshape(1, 1, 3)
