@@ -14,17 +14,16 @@ def _nms(heat, kernel=3):
 
 
 def _topk(scores, K=40):
-    batch, cat, height, width = scores.size()
+    batch, cat, height, width = scores.shape
       
-    #topk_scores, topk_inds = nd.topk(scores.view(batch, cat, -1), ret_typ='both', k=K)  # return both value and indices
     [topk_scores, topk_inds] = nd.topk(nd.reshape(scores, (batch, cat, -1)), ret_typ='both', k=K)  # return both value and indices
 
     topk_inds = topk_inds % (height * width)
-    topk_ys   = (topk_inds / width).int().float()
-    topk_xs   = (topk_inds % width).int().float()
+    topk_ys   = (topk_inds / width).astype('int').astype('float32')
+    topk_xs   = (topk_inds % width).astype('int').astype('float32')
       
     [topk_score, topk_ind] = nd.topk(nd.reshape(topk_scores, (batch, -1)), ret_typ='both', k=K)
-    topk_clses = (topk_ind / K).int()
+    topk_clses = (topk_ind / K).astype('int')
 
     topk_inds = _gather_feat(nd.reshape(topk_inds, (batch, -1, 1)), topk_ind)
     topk_inds = nd.reshape(topk_inds, (batch, K))
@@ -39,7 +38,7 @@ def _topk(scores, K=40):
 
 
 def ctdet_decode(heat, wh, reg=None, cat_spec_wh=False, K=100):
-    batch, cat, height, width = heat.size()
+    batch, cat, height, width = heat.shape
 
     # perform nms on heatmaps
     heat = _nms(heat)
@@ -75,3 +74,13 @@ def ctdet_decode(heat, wh, reg=None, cat_spec_wh=False, K=100):
                         ys + wh[..., 1:2] / 2], dim=2)
     detections = nd.concat([bboxes, scores, clses], dim=2)
     return detections
+
+    
+scores = nd.random.uniform(shape=(2,3,4,5))
+batch, cat, height, width = scores.shape
+[topk_scores, topk_inds] = nd.topk(nd.reshape(scores, (batch, cat, -1)), ret_typ='both', k=2)  # return both value and indices
+print(topk_scores)
+print(topk_inds)
+
+topk_score, topk_inds, topk_clses, topk_ys, topk_xs = _topk(scores, K=4)
+print(topk_score)
