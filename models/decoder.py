@@ -37,7 +37,7 @@ def _topk(scores, K=40):
     return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
 
-def ctdet_decode(heat, wh, reg=None, cat_spec_wh=False, K=100):
+def decode_centernet(heat, wh, reg=None, cat_spec_wh=False, K=100):
     batch, cat, height, width = heat.shape
 
     # perform nms on heatmaps

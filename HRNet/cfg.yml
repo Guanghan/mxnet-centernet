@@ -25,7 +25,8 @@ DATASET:
 MODEL:
   INIT_WEIGHTS: true
   NAME: pose_hrnet
-  NUM_JOINTS: 17
+  NUM_JOINTS: 17  # COCO
+  #NUM_JOINTS: 15   # PoseTrack
   PRETRAINED: 'models/pytorch/imagenet/hrnet_w32-36af842e.pth'
   TARGET_TYPE: gaussian
   IMAGE_SIZE:

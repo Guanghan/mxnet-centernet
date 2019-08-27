@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
+# Direct translation of the official HRNet for pose estimation: 
+# https://github.com/leoxiaobin/deep-high-resolution-net.pytorch/blob/master/lib/models/pose_hrnet.py
 
-# from base.base_model import BaseModel
+# adopted from:
+# https://github.com/hsfzxjy/HRNet-tensorflow/blob/master/models/pose_hrnet.py
+
+#'''
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Dropout, Flatten, BatchNormalization
 import tensorflow.keras.layers as layers
 import tensorflow.keras as keras
+#'''
 
+'''
+from keras.models import Sequential
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, Dropout, Flatten, BatchNormalization
+import keras.layers as layers
+import keras
+'''
 
 BN_MOMENTUM = 0.1
 
@@ -102,6 +114,7 @@ class Bottleneck(layers.Layer):
 
     def call(self, x):
         residual = x
+        print("BottleNeck input: ", x.shape)
 
         out = self.conv1(x)
         out = self.bn1(out)
@@ -119,6 +132,7 @@ class Bottleneck(layers.Layer):
 
         out += residual
         out = self.relu(out)
+        print("BottleNeck: ", out.shape)
 
         return out
 
@@ -482,6 +496,7 @@ class PoseHighResolutionNet(keras.Model):
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
+        print(x.shape)
         x = self.layer1(x)
 
         x_list = []
@@ -532,6 +547,8 @@ if __name__ == '__main__':
     from keras import losses
     import tensorflow as tf
     import numpy as np
+    from utils_json import json_to_python, write_json_to_file
+
     cfg = yaml.load(
         open('cfg.yml'),
         Loader=yaml.FullLoader
@@ -542,13 +559,35 @@ if __name__ == '__main__':
         loss=losses.mean_squared_error,
         metrics=['accuracy']
     )
-    # model.fit(
-    #     np.random.random([1, 256, 192, 3]),
-    #     np.random.random([1, 256, 192, 20])
-
-    # )
-    model.predict(
+    '''
+    model.fit(
+         np.random.random([1, 256, 192, 3]),
+         np.random.random([1, 256, 192, 20])
+    )
+    output = model.predict(
         tf.zeros([1, 256, 192, 3]),
         batch_size=1
     )
-    print(model.summary())
+    print(output.shape)
+    #print(model.summary())
+    '''
+
+    '''
+    image = tf.placeholder(tf.float32, shape=[1, 256, 192, 3])
+    output = model.predict(
+        image,
+        batch_size=1
+    )
+    print(output.shape)
+    '''
+    
+    output = model(tf.zeros([1, 256, 192, 3]))
+    print(output.shape)
+
+    #json_string = model.to_json()
+    #python_data = json_to_python(json_string)
+    #output_path = "./hrnet.json"
+    #write_json_to_file(python_data, output_path)
+
+    #yaml_string = model.to_yaml()
+    #print(yaml_string)
