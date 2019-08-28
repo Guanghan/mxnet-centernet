@@ -6,8 +6,11 @@ import numpy as np
 import cv2
 import time
 
+import sys
+sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/utils")
 from models.model import create_model, load_model
-from utils.image import get_affine_transform
+#from utils.image import get_affine_transform
+from image import get_affine_transform
 
 class BaseDetector(object):
     def __init__(self, options):
