@@ -23,12 +23,11 @@ class BaseDetector(object):
                 self.ctx = mx.cpu()
         else:
             self.ctx = mx.cpu()
-        
+
         print("Creating model...")
         self.model = create_model(options.arch, options.heads, options.head_conv_channels)
-        #self.model = load_model(self.model, options.load_model)
+        self.model = load_model(self.model, options.load_model_path)  # need to be implemented
         self.model = self.model.as_in_context(self.ctx)
-        #self.model.eval()
 
         self.mean = np.array(options.mean, dtype=np.float32).reshape(1, 1, 3)
         self.std = np.array(options.std, dtype=np.float32).reshape(1, 1, 3)
@@ -64,8 +63,8 @@ class BaseDetector(object):
         if self.opt.flip_test:
             images = np.concatenate((images, images[:, :, :, ::-1]), axis=0)
         images = nd.array(images)
-        meta = {'c': c, 's': s, 
-                'out_height': inp_height // self.opt.down_ratio, 
+        meta = {'c': c, 's': s,
+                'out_height': inp_height // self.opt.down_ratio,
                 'out_width': inp_width // self.opt.down_ratio}
         return images, meta
 
@@ -96,7 +95,7 @@ class BaseDetector(object):
         pre_processed = False
         if isinstance(image_or_path_or_tensor, np.ndarray):
             image = image_or_path_or_tensor
-        elif type(image_or_path_or_tensor) == type (''): 
+        elif type(image_or_path_or_tensor) == type (''):
             image = cv2.imread(image_or_path_or_tensor)
         else:
             image = image_or_path_or_tensor['image'][0].numpy()
@@ -120,17 +119,17 @@ class BaseDetector(object):
             #torch.cuda.synchronize()
             pre_process_time = time.time()
             pre_time += pre_process_time - scale_start_time
-            
+
             output, dets, forward_time = self.process(images, return_time=True)
 
             #torch.cuda.synchronize()
             net_time += forward_time - pre_process_time
             decode_time = time.time()
             dec_time += decode_time - forward_time
-            
+
             #if self.opt.debug >= 2:
             #    self.debug(debugger, images, dets, output, scale)
-            
+
             dets = self.post_process(dets, meta, scale)
             #torch.cuda.synchronize()
             post_process_time = time.time()

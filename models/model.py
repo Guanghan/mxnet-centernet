@@ -14,8 +14,10 @@ def create_model(arch, heads, head_conv_channels):
     model = get_model_func(num_layers=num_layers, heads=heads, head_conv=head_conv_channels)
     return model
 
-def load_model():
-    return
+def load_model(model, model_load_path):
+    model.load_parameters(model_load_path)
+    return model
 
-def save_model():
-    return
+def save_model(model, model_save_path):
+    model.save_parameters(model_save_path)
+    
