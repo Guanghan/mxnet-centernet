@@ -1,4 +1,4 @@
-from networks.large_hourglass import get_large_hourglass_net
+from models.large_hourglass import get_large_hourglass_net
 
 _model_factory = {
     'hourglass': get_large_hourglass_net,
@@ -20,4 +20,3 @@ def load_model(model, model_load_path):
 
 def save_model(model, model_save_path):
     model.save_parameters(model_save_path)
-    
