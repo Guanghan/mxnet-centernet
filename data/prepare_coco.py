@@ -1,3 +1,4 @@
+# https://gluon-cv.mxnet.io/build/examples_datasets/mscoco.html
 """Prepare MS COCO datasets"""
 import os
 import shutil
