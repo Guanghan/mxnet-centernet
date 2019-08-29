@@ -69,13 +69,13 @@ class residual(nn.Block):
             self.conv1 = nn.Conv2D(channels_out, kernel_size=(3,3), strides=(stride, stride), padding=(1,1), in_channels=channels_in, use_bias=False)
             self.bn1   = nn.BatchNorm(in_channels= channels_out)
 
-            self.conv2 = nn.Conv2D(channels_out, kernel_size=(3,3), strides=(1, 1), padding=(1,1), use_bias=False)
+            self.conv2 = nn.Conv2D(channels_out, kernel_size=(3,3), strides=(1, 1), padding=(1,1), in_channels = channels_out,use_bias=False)
             self.bn2   = nn.BatchNorm(in_channels= channels_out)
 
             #self.skip = nn.HybridSequential()
             self.skip = nn.Sequential()
             if stride != 1 or channels_in != channels_out:
-                self.skip.add( nn.Conv2D(channels_out, kernel_size=(1,1), strides=(stride, stride), use_bias=False),
+                self.skip.add( nn.Conv2D(channels_out, kernel_size=(1,1), strides=(stride, stride), in_channels= channels_in, use_bias=False),
                                nn.BatchNorm(in_channels= channels_out)
                 )
 
@@ -433,7 +433,8 @@ class HourglassNet(stacked_hourglass):
 6. Constructor & interface for outside call
 """
 def get_large_hourglass_net(num_layers, heads, head_conv):
-    model = HourglassNet(heads, 2)
+    #model = HourglassNet(heads, 2)
+    model = HourglassNet(heads, 1)
     return model
 
 

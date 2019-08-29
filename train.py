@@ -9,7 +9,8 @@ print('Creating model...')
 opt = opts().init()
 print(opt.arch)
 model = create_model(opt.arch, opt.heads, opt.head_conv)
-model.collect_params().initialize()
+#model.collect_params().initialize()
+model.initialize()
 
 #'''
 X   = nd.random.uniform(shape=(1, 3, 256, 256))
@@ -25,9 +26,15 @@ x = mx.sym.var('data')
 symbol = model(x)
 mx.viz.plot_network(symbol)
 '''
+param = model.collect_params()
+param_keys = param.keys()
+param_keys_residual_1 = [param[param_key] for param_key in param_keys if "hourglassnet0_residual1_conv1_weight" in param_key]
+print(param_keys_residual_1)
 
+#'''
 print("\n\nSaving model...")
 save_model(model, "./init_params.params")
+#'''
 
 
 
