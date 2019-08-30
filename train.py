@@ -32,9 +32,10 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
     val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
 
     # image transformer
-    img_transform = transforms.Compose([transforms.Resize(300),
-                                        transforms.RandomResizedCrop(224),
-                                        transforms.RandomBrightness(0.1),
+    img_transform = transforms.Compose([transforms.Resize(640),
+                                        transforms.RandomResizedCrop(512, scale=(0.6, 1.3), ratio=(0.75, 1.33)),
+                                        transforms.RandomFlipLeftRight(),
+                                        transfroms.RandomColorJitter(),
                                         transforms.ToTensor(),
                                         transforms.Normalize(0, 1)])
 
@@ -88,23 +89,18 @@ def train(model, train_loader, val_loader, eval_metric, ctx, args):
 
         # validation loop
         if epoch % self.val_interval != 0: continue
-        cumulative_train_loss = mx.nd.zeros(1, ctx=ctx)
-        valid_samples = 0
-
         map_name, mean_ap = validate(model, val_loader, ctx, eval_metric)
         val_msg = '\n'.join(['{}={}'.format(k, v) for k, v in zip(map_name, mean_ap)])
         logger.info('[Epoch {}] Validation: \n{}'.format(epoch, val_msg))
 
         # Save parameters
         prefix = "CenterNet_" + opt.arch
-        save_model(model, '{:s}_{:04d}_{:.4f}.params'.format(prefix, epoch))
+        save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
 
 
 def validate(model, val_loader, ctx, eval_metric):
     """Test on validation dataset."""
     eval_metric.reset()
-    # set nms threshold and topk constraint
-    model.set_nms(nms_thresh=0.45, nms_topk=400)
     for batch in val_loader:
         data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
         label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
@@ -128,7 +124,6 @@ def validate(model, val_loader, ctx, eval_metric):
         # update metric
         eval_metric.update(det_bboxes, det_ids, det_scores, gt_bboxes, gt_ids, gt_difficults)
     return eval_metric.get()
-
 
 
 # call:
