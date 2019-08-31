@@ -2,14 +2,15 @@
 Author: Guanghan Ning
 Date:   August, 2019
 """
-from models.model import create_model, load_model, save_model
+from mxnet import nd, gluon, init
+from gluoncv import data as gdata
+
 from opts import opts
 
+from models.model import create_model, load_model, save_model
 from models.large_hourglass import stacked_hourglass
-from mxnet import nd, gluon, init
-import mxnet as mx
+from model.decoder import decode_centernet
 
-from gluoncv import data as gdata
 
 def get_coco(coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
@@ -28,7 +29,7 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
     """Get dataloader."""
     width, height = data_shape, data_shape
 
-    batchify_fn = Tuple(Stack(), Stack(), Stack())  # stack image, cls_targets, box_targets
+    batchify_fn = Tuple(Stack(), Stack(), Stack(), Stack())  # stack image, heatmaps, scale, offset
     val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
 
     # image transformer
@@ -38,7 +39,6 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
                                         transfroms.RandomColorJitter(),
                                         transforms.ToTensor(),
                                         transforms.Normalize(0, 1)])
-
 
     train_data = train_dataset.transform_first(img_transform)
     train_loader = gluon.data.DataLoader( train_data,
@@ -60,27 +60,24 @@ def train(model, train_loader, val_loader, eval_metric, ctx, args):
 
     for epoch in range(args.start_epoch, args.epochs):
         # training loop
-        cumulative_train_loss = mx.nd.zeros(1, ctx=ctx)
+        cumulative_train_loss = nd.zeros(1, ctx=ctx)
         training_samples = 0
 
         for i, batch in enumerate(train_loader):
-            data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
-            cls_targets = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)
-            box_targets = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0)
+            X = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+            targets_heatmaps = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)  # heatmaps: (batch, num_classes, H/S, W/S)
+            targets_scale = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0)  # scale: wh (batch, 2, H/S, W/S)
+            targets_offset = gluon.utils.split_and_load(batch[3], ctx_list=ctx, batch_axis=0) # offset: xy (batch, 2, H/s, W/S)
 
             with autograd.record():
-                cls_preds = []
-                box_preds = []
-                for x in data:
-                    cls_pred, box_pred, _ = model(x)
-                    cls_preds.append(cls_pred)
-                    box_preds.append(box_pred)
+                Y = model(X)
+                preds_heatmaps, preds_scale, preds_offset = Y[0]["hm"], Y[0]["wh"], Y[0]["reg"]
 
-                sum_loss, cls_loss, box_loss = criterion(cls_preds, box_preds, cls_targets, box_targets)
+                heatmap_crossentropy_focal_loss, scale_L1_loss, offset_L1_loss = criterion()
+                sum_loss = heatmap_crossentropy_focal_loss + 0.1 * scale_L1_loss + 1.0 * offset_L1_loss
                 autograd.backward(sum_loss)
-            # since we have already normalized the loss, we don't want to normalize
-            # by batch-size anymore
-            trainer.step(1)
+            # normalize loss by batch-size
+            trainer.step(X.shape[0])
 
             cumulative_train_loss += sum_loss.sum()
             training_samples += data.shape[0]
@@ -111,7 +108,9 @@ def validate(model, val_loader, ctx, eval_metric):
         gt_ids = []
         for x, y in zip(data, label):
             # get prediction results
-            ids, scores, bboxes = model(x)
+            pred = model(x)
+            heatmaps, scale, offset = pred[0]["hm"], pred[0]["wh"], pred[0]["reg"]
+            bboxes, scores, ids = decode_centernet(heat=heatmaps, wh=scale, reg=offset, flag_split=True)
             det_ids.append(ids)
             det_scores.append(scores)
             # clip to image size
