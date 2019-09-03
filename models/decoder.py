@@ -56,9 +56,7 @@ def decode_centernet(heat, wh, reg=None, cat_spec_wh=False, K=100, flag_split=Fa
 
     scores, inds, clses, ys, xs = _topk(heat, K=K)
     if reg is not None:
-        print("\t reg.shape = ", reg.shape)
         reg = _tranpose_and_gather_feat(reg, inds)
-        print("reg.shape = ", reg.shape)
         reg = nd.reshape(reg, (batch, K, 2))
         xs = nd.reshape(xs, (batch, K, 1)) + reg[:, :, 0:1]
         ys = nd.reshape(ys, (batch, K, 1)) + reg[:, :, 1:2]
