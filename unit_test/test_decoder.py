@@ -31,7 +31,8 @@ def display_func_name(func):
 
 
 if __name__ == "__main__":
-    function_list = [test_topk, test_decode_centernet]
+    #function_list = [test_topk, test_decode_centernet]
+    function_list = [test_decode_centernet]
     #function_list = [test_topk]
     for unit_test in function_list:
         display_func_name(unit_test)

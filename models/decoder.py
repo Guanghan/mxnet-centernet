@@ -18,10 +18,8 @@ from models.tensor_utils import _gather_feat, _tranpose_and_gather_feat
 
 def _nms(heat, kernel=3):
     pad = (kernel - 1) // 2
-    print("heat.shape = ", heat.shape)
 
     hmax = nd.Pooling(data=heat, kernel= (kernel, kernel), stride=(1,1), pad=(pad,pad))
-    print("hmax.shape = ", hmax.shape)
     keep = (hmax == heat).astype('float32')
     return heat * keep
 
@@ -38,12 +36,8 @@ def _topk(scores, K=40):
     [topk_score, topk_ind] = nd.topk(nd.reshape(topk_scores, (batch, -1)), ret_typ='both', k=K)
     topk_clses = (topk_ind / K).astype('int')
 
-    print("in _topk func: the feat.shape before _gather_feat is: ", topk_inds.shape)
     topk_inds = _gather_feat(nd.reshape(topk_inds, (batch, -1, 1)), topk_ind)
-    print("in _topk func: the feat.shape after _gather_feat is: ", topk_inds.shape)
     topk_inds = nd.reshape(topk_inds, (batch, K))
-    print("in _topk func: the feat.shape after _gather_feat is: ", topk_inds.shape)
-    print("K = ", K)
 
     topk_ys = _gather_feat(nd.reshape(topk_ys, (batch, -1, 1)), topk_ind)
     topk_ys = nd.reshape(topk_ys, (batch, K))
@@ -87,10 +81,10 @@ def decode_centernet(heat, wh, reg=None, cat_spec_wh=False, K=100, flag_split=Fa
 
     clses  = nd.reshape(clses, (batch, K, 1)).astype('float32')
     scores = nd.reshape(scores, (batch, K, 1))
-    bboxes = nd.concat([xs - wh[..., 0:1] / 2,
-                        ys - wh[..., 1:2] / 2,
-                        xs + wh[..., 0:1] / 2,
-                        ys + wh[..., 1:2] / 2], dim=2)
+    bboxes = nd.concat([xs - wh[:, :, 0:1] / 2,
+                        ys - wh[:, :, 1:2] / 2,
+                        xs + wh[:, :, 0:1] / 2,
+                        ys + wh[:, :, 1:2] / 2], dim=2)
 
     if flag_split is True:
         return bboxes, scores, clses

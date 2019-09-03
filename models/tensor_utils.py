@@ -21,16 +21,34 @@ def _sigmoid(x):
 def _gather_feat(feat, ind, mask=None):
     dim  = feat.shape[2]
     ind = ind.expand_dims(2).broadcast_to((ind.shape[0], ind.shape[1], dim))
-    print("ind_new.shape = ", ind.shape)
 
+    print("feat_benchmark.shape = ", feat.shape)
+    print("ind_benchmark.shape = ", ind.shape)
+
+    feat_reshape = feat.swapaxes(dim1 = 0, dim2 = 1)
+    print("feat_reshape.shape = ", feat_reshape.shape)
+
+    ind_reshape = ind.swapaxes(dim1 = 0, dim2 = 2)
+    print("ind_reshape.shape = ", ind_reshape.shape)
+
+    '''
     ind_identity = nd.zeros(shape= ind.shape)
     for i in range(ind_identity.shape[0]):
         ind_identity[i, :, :] = i
-    ind_stack = nd.stack(ind_identity, ind, axis=0)
-    print("ind_stack.shape = ", ind_stack.shape)
+    ind_stack = nd.stack(ind_identity, ind, axis=0).squeeze(axis=3)
+    '''
+    #print("ind_stack.shape = ", ind_stack.shape)
+    #ind = ind_stack.swapaxes(dim1 = 0, dim2 = 2)
+    #ind = ind_stack.swapaxes(dim1 = 1, dim2 = 2)
+    #print("ind_swaped.shape = ", ind.shape)
 
-    feat = nd.gather_nd(data=feat, indices=ind_stack)  # something might be wrong here, probably should not use ind_stack
-    # shape should be (2, 4)
+    feat = nd.gather_nd(data=feat_reshape, indices=ind_reshape)  # something might be wrong here, probably should not use ind_stack
+
+    if len(feat.shape) == 4:
+        feat = feat.mean(axis = 1)
+    #feat = nd.gather_nd(data=feat, indices=ind)  # something might be wrong here, probably should not use ind_stack
+    # shape should be (16, 10, 2)
+    print("feat_after_gather.shape = ", feat.shape)
 
     if mask is not None:
         mask = nd.expand_dims(mask, 2).broadcast_to(feat.shape)
@@ -41,10 +59,10 @@ def _gather_feat(feat, ind, mask=None):
 def _tranpose_and_gather_feat(feat, ind):
     feat = nd.transpose(feat, axes=(0, 2, 3, 1))
     feat = nd.reshape(feat, shape=(feat.shape[0], -1, feat.shape[3]))
-    print("feat.shape = ", feat.shape)
-    print("ind.shape = ", ind.shape)
+    print("\t in transpose and gather: feat.shape = ", feat.shape)
+    print("\t in transpose and gather: ind.shape = ", ind.shape)
     feat = _gather_feat(feat, ind)
-    print("feat_after_gather.shape = ", feat.shape)
+    #print("feat_after_gather.shape = ", feat.shape)
     return feat
 
 def flip_tensor(x):
