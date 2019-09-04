@@ -268,7 +268,8 @@ class opts(object):
       opt.chunk_sizes.append(slave_chunk_size)
     print('training chunk_sizes:', opt.chunk_sizes)
 
-    opt.root_dir = os.path.join(os.path.dirname(__file__), '..', '..')
+    #opt.root_dir = os.path.join(os.path.dirname(__file__), '..', '..')
+    opt.root_dir = os.path.join(os.path.dirname(__file__))
     opt.data_dir = os.path.join(opt.root_dir, 'data')
     opt.exp_dir = os.path.join(opt.root_dir, 'exp', opt.task)
     opt.save_dir = os.path.join(opt.exp_dir, opt.exp_id)
