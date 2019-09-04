@@ -144,4 +144,5 @@ class CenterCOCODataset(COCO):
                np.zeros((1, 6), dtype=np.float32)
       meta = {'c': c, 's': s, 'gt_det': gt_det, 'img_id': img_id}
       ret['meta'] = meta
-    return ret
+    #return ret
+    return inp, hm, wh, reg

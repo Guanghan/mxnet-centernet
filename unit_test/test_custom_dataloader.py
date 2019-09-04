@@ -17,19 +17,25 @@ def test_load():
     train_dataset = CenterCOCODataset(opt, split = 'train')
     train_loader = gluon.data.DataLoader( train_dataset,
         batch_size, True, batchify_fn=batchify_fn, last_batch='rollover', num_workers=num_workers)
+    ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
+    ctx = ctx if ctx else [mx.cpu()]
 
     for i, batch in enumerate(train_loader):
-        print(batch.shape)
+        print("{} Batch".format(i))
+        print("image batch shape: ", batch[0].shape)
+        print("heatmap batch shape", batch[1].shape)
+        print("scale batch shape", batch[2].shape)
+        print("offset batch shape", batch[3].shape)
 
         X = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
         targets_heatmaps = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)  # heatmaps: (batch, num_classes, H/S, W/S)
         targets_scale = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0)  # scale: wh (batch, 2, H/S, W/S)
         targets_offset = gluon.utils.split_and_load(batch[3], ctx_list=ctx, batch_axis=0) # offset: xy (batch, 2, H/s, W/S)
 
-        print(x.shape)
-        print(targets_heatmaps.shape)
-        print(targets_scale.shape)
-        print(targets_offset.shape)
+        print("First item: image shape: ", X[0].shape)
+        print("First item: heatmaps shape: ", targets_heatmaps[0].shape)
+        print("First item: scalemaps shape: ", targets_scale[0].shape)
+        print("First item: offsetmaps shape: ", targets_offset[0].shape)
     return
 
 

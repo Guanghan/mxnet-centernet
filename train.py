@@ -139,6 +139,8 @@ if __name__ == "__main__":
 
     """ 2. Dataset """
     train_dataset, val_dataset, eval_metric = get_coco("./data/coco")
+    ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
+    ctx = ctx if ctx else [mx.cpu()]
     train_loader, val_loader = get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx)
 
     """ 3. Training """
