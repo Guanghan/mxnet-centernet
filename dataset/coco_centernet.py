@@ -3,6 +3,7 @@ from gluoncv import data as gdata
 
 import sys
 sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/")
+sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
 
 import numpy as np
 import json, os, cv2
