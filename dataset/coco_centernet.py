@@ -6,7 +6,7 @@ sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/")
 sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
 
 import numpy as np
-import json, os, cv2
+import math, json, os, cv2
 
 from utils.image import flip, color_aug
 from utils.image import get_affine_transform, affine_transform
