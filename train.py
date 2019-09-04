@@ -4,6 +4,7 @@ Date:   August, 2019
 """
 from mxnet import nd, gluon, init
 from gluoncv import data as gdata
+from gluoncv.data.batchify import Tuple, Stack, Pad
 
 from opts import opts
 
@@ -73,7 +74,8 @@ def train(model, train_loader, val_loader, eval_metric, ctx, args):
                 Y = model(X)
                 preds_heatmaps, preds_scale, preds_offset = Y[0]["hm"], Y[0]["wh"], Y[0]["reg"]
 
-                heatmap_crossentropy_focal_loss, scale_L1_loss, offset_L1_loss = criterion()
+                heatmap_crossentropy_focal_loss, scale_L1_loss, offset_L1_loss = criterion(targets_heatmaps, targets_scale, targets_offset,
+                                                                                           preds_heatmaps, preds_scale, preds_offset)
                 sum_loss = heatmap_crossentropy_focal_loss + 0.1 * scale_L1_loss + 1.0 * offset_L1_loss
                 autograd.backward(sum_loss)
             # normalize loss by batch-size

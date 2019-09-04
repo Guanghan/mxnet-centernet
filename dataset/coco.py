@@ -8,7 +8,8 @@ import numpy as np
 import json
 import os
 
-import gluon.data as data
+#from mxnet import nd, gluon, init
+import mxnet.gluon.data as data
 
 class COCO(data.Dataset):
   num_classes = 80
