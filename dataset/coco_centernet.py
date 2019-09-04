@@ -145,4 +145,4 @@ class CenterCOCODataset(COCO):
       meta = {'c': c, 's': s, 'gt_det': gt_det, 'img_id': img_id}
       ret['meta'] = meta
     #return ret
-    return inp, hm, wh, reg
+    return inp, hm, wh, reg, ind, reg_mask

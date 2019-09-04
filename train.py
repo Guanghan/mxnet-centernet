@@ -11,6 +11,7 @@ from opts import opts
 from models.model import create_model, load_model, save_model
 from models.large_hourglass import stacked_hourglass
 from model.decoder import decode_centernet
+from models.loss import CtdetLoss
 
 
 def get_coco(coco_path="/export/guanghan/coco"):
@@ -58,6 +59,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, args):
     trainer = gluon.Trainer(model.collect_params(),
                            'sgd',
                            {'learning_rate': args.lr, 'wd': args.wd, 'momentum': args.momentum})
+    criterion = CtdetLoss()
 
     for epoch in range(args.start_epoch, args.epochs):
         # training loop
@@ -69,13 +71,14 @@ def train(model, train_loader, val_loader, eval_metric, ctx, args):
             targets_heatmaps = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)  # heatmaps: (batch, num_classes, H/S, W/S)
             targets_scale = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0)  # scale: wh (batch, 2, H/S, W/S)
             targets_offset = gluon.utils.split_and_load(batch[3], ctx_list=ctx, batch_axis=0) # offset: xy (batch, 2, H/s, W/S)
+            targets_inds = gluon.utils.split_and_load(batch[4], ctx_list=ctx, batch_axis=0)
+            targets_mask = gluon.utils.split_and_load(batch[5], ctx_list=ctx, batch_axis=0)
 
             with autograd.record():
-                Y = model(X)
-                preds_heatmaps, preds_scale, preds_offset = Y[0]["hm"], Y[0]["wh"], Y[0]["reg"]
+                preds = model(X)
+                #preds_heatmaps, preds_scale, preds_offset = preds[0]["hm"], preds[0]["wh"], preds[0]["reg"]
 
-                heatmap_crossentropy_focal_loss, scale_L1_loss, offset_L1_loss = criterion(targets_heatmaps, targets_scale, targets_offset,
-                                                                                           preds_heatmaps, preds_scale, preds_offset)
+                heatmap_crossentropy_focal_loss, scale_L1_loss, offset_L1_loss = criterion(preds, targets_heatmaps, targets_scale, targets_offset, targets_ind, targets_mask)
                 sum_loss = heatmap_crossentropy_focal_loss + 0.1 * scale_L1_loss + 1.0 * offset_L1_loss
                 autograd.backward(sum_loss)
             # normalize loss by batch-size
