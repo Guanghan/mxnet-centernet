@@ -2,6 +2,10 @@
 Author: Guanghan Ning
 Date:   August, 2019
 """
+import sys, os
+sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/dataset")
+sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/dataset")
+
 from mxnet import nd, gluon, init
 from gluoncv import data as gdata
 from gluoncv.data.batchify import Tuple, Stack, Pad
