@@ -15,7 +15,7 @@ from models.loss import CtdetLoss
 
 from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
 
-def get_coco(coco_path="/export/guanghan/coco", opt):
+def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
     train_dataset = CenterCOCODataset(opt, split = 'train')   # custom dataset
     val_dataset = gdata.COCODetection(root= coco_path, splits='instances_val2017', skip_empty=False)  # gluon official
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     model.collect_params().initialize(init=init.Xavier())
 
     """ 2. Dataset """
-    train_dataset, val_dataset, eval_metric = get_coco("./data/coco", opt)
+    train_dataset, val_dataset, eval_metric = get_coco(opt, "./data/coco")
     ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
     ctx = ctx if ctx else [mx.cpu()]
     data_shape = opt.input_res
