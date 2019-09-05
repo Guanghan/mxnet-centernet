@@ -374,14 +374,14 @@ class stacked_hourglass(nn.Block):
 
     def forward(self, img):
         inter = self.pre(img)
-        print("\t inter shape: ", inter.shape)
+        #print("\t inter shape: ", inter.shape)
         outs = []
 
         for ind in range(self.num_stacks):
             kp_, conv_ = self.kpts[ind], self.convs[ind]
             kp = kp_(inter)
             conv = conv_(kp)
-            print("\t conv shape: ", conv.shape)
+            #print("\t conv shape: ", conv.shape)
 
             out = {}
             for head in self.heads:
@@ -394,7 +394,7 @@ class stacked_hourglass(nn.Block):
                 inter = self.inters_[ind](inter) + self.convs_[ind](conv)
                 inter = nd.relu(inter)
                 inter = self.inters[ind](inter)
-                print("\t inter shape: ", inter.shape)
+                #print("\t inter shape: ", inter.shape)
         return outs
 
 def test_stacked_hourglass():
@@ -402,14 +402,21 @@ def test_stacked_hourglass():
     channels    = [256, 256, 384, 384, 384, 512]
     num_blocks  = [2, 2, 2, 2, 2, 4]
     num_stacks  = 2
-    heads       = {}
 
-    blk = stacked_hourglass(level, num_stacks, channels, num_blocks, heads)
+    import sys
+    sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
+    sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/")
+    from opts import opts
+    opt = opts().init()
+    print(opt.arch)
+    print(opt.heads)
+
+    blk = stacked_hourglass(level, num_stacks, channels, num_blocks, opt.heads)
     blk.initialize()
-    X   = nd.random.uniform(shape=(1, 3, 256, 256))
+    X   = nd.random.uniform(shape=(1, 3, 512, 512))
     Y   = blk(X)
     print("\t Input shape: ", X.shape)
-    print("\t output:", Y)
+    print("\t output len:", len(Y))
 
 """
 5. Network with specifications
@@ -433,8 +440,8 @@ class HourglassNet(stacked_hourglass):
 6. Constructor & interface for outside call
 """
 def get_large_hourglass_net(num_layers, heads, head_conv):
-    #model = HourglassNet(heads, 2)
-    model = HourglassNet(heads, 1)
+    model = HourglassNet(heads, 2)
+    #model = HourglassNet(heads, 1)
     return model
 
 

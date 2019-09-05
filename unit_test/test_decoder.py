@@ -1,4 +1,5 @@
 import sys
+sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
 sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/")
 
 from models.decoder import *

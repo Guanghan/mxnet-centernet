@@ -73,50 +73,41 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
 
     for epoch in range(0, opt.num_epochs):
         # training loop
-        cumulative_train_loss = nd.zeros(1, ctx=ctx[0])
+        #cumulative_train_loss = nd.zeros(1, ctx=ctx[0])
+        cumulative_train_loss = nd.zeros(1)
         training_samples = 0
 
         for i, batch in enumerate(train_loader):
-            X = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
+            print("Iter: {}".format(i))
+
+            data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
             targets_heatmaps = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)  # heatmaps: (batch, num_classes, H/S, W/S)
             targets_scale = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0)  # scale: wh (batch, 2, H/S, W/S)
             targets_offset = gluon.utils.split_and_load(batch[3], ctx_list=ctx, batch_axis=0) # offset: xy (batch, 2, H/s, W/S)
             targets_inds = gluon.utils.split_and_load(batch[4], ctx_list=ctx, batch_axis=0)
             targets_mask = gluon.utils.split_and_load(batch[5], ctx_list=ctx, batch_axis=0)
 
-            print("batch number: ", i)
             with autograd.record():
-                preds = model(X[0])
+                losses = [ criterion(model(X), hm, scale, offset, inds, mask) \
+                for X, hm, scale, offset, inds, mask in zip(data, targets_heatmaps, targets_scale, targets_offset, targets_inds, targets_mask) ]
 
-                '''
-                #print(X[0].shape)
-                #preds_heatmaps, preds_scale, preds_offset = preds[0]["hm"], preds[0]["wh"], preds[0]["reg"]
-                print("len(preds): ", len(preds))
-                print("opt.num_stacks", opt.num_stacks)
-                print("output: heatmaps", preds[0]["hm"].shape)
-                print("output: wh_scale", preds[0]["wh"].shape)
-                print("output: xy_offset", preds[0]["reg"].shape)
-
-                print(len(targets_heatmaps))
-                print(targets_heatmaps[0].shape)
-                print(targets_scale[0].shape)
-                print(targets_offset[0].shape)
-                print(targets_inds[0].shape)
-                print(targets_mask[0].shape)
-                '''
-                heatmap_crossentropy_focal_loss, scale_L1_loss, offset_L1_loss = criterion(preds, targets_heatmaps[0], targets_scale[0], targets_offset[0], targets_inds[0], targets_mask[0])
-                sum_loss = heatmap_crossentropy_focal_loss + 0.1 * scale_L1_loss + 1.0 * offset_L1_loss
-                autograd.backward(sum_loss)
+            for loss in losses:
+                loss.backward()
 
             # normalize loss by batch-size
-            num_gpus = len(opt.gpus)
-            trainer.step(opt.batch_size // num_gpus, ignore_stale_grad=True)
+            trainer.step(opt.batch_size, ignore_stale_grad=True)
 
-            cumulative_train_loss += sum_loss.as_in_context(ctx[0]).sum()
+            '''
+            for loss in losses:
+                cumulative_train_loss += loss.as_in_context(mx.context.cpu(0)).sum()
+                #cumulative_train_loss += loss.sum().as_in_context(mx.context.cpu(0))
+                #cumulative_train_loss += loss.sum().as_in_context(ctx[0])
+                #print("cumulative_train_loss: ", cumulative_train_loss)
+                training_samples += opt.batch_size
+
             if i % 200 == 0:
-                print("Iter: {}, loss: {}".format(i, sum_loss.as_in_context(ctx[0])))
-                print("cumulative_train_loss: ", cumulative_train_loss)
-            training_samples += opt.batch_size // num_gpus
+                print("Iter: {}, loss: {}".format(i, losses[0].as_in_context(ctx[0])))
+            '''
 
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
         print("Epoch {}, training loss: {:.2f}".format(epoch, train_loss_per_epoch))
@@ -175,7 +166,7 @@ if __name__ == "__main__":
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
     model = create_model(opt.arch, opt.heads, opt.head_conv)
-    model.collect_params().initialize(init=init.Xavier(), ctx=ctx)
+    model.collect_params().initialize(init=init.Xavier(), ctx = ctx)
 
     """ 2. Dataset """
     train_dataset, val_dataset, eval_metric = get_coco(opt, "./data/coco")

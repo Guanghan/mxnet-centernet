@@ -36,8 +36,9 @@ def test_load():
         targets_scale = gluon.utils.split_and_load(batch[2], ctx_list=ctx, batch_axis=0)  # scale: wh (batch, 2, H/S, W/S)
         targets_offset = gluon.utils.split_and_load(batch[3], ctx_list=ctx, batch_axis=0) # offset: xy (batch, 2, H/s, W/S)
         targets_inds = gluon.utils.split_and_load(batch[4], ctx_list=ctx, batch_axis=0)
-        targest_mask = gluon.utils.split_and_load(batch[5], ctx_list=ctx, batch_axis=0)
+        targets_mask = gluon.utils.split_and_load(batch[5], ctx_list=ctx, batch_axis=0)
 
+        print("len(targets_heatmaps): ", len(targets_heatmaps))
         print("First item: image shape: ", X[0].shape)
         print("First item: heatmaps shape: ", targets_heatmaps[0].shape)
         print("First item: scalemaps shape: ", targets_scale[0].shape)

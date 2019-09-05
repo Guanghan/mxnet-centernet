@@ -16,7 +16,7 @@ from mxnet.gluon import nn
 from mxnet import gluon, init, nd
 
 from utils.oracle_utils import gen_oracle_map
-from models.tensor_utils import _tranpose_and_gather_feat
+from models.tensor_utils import _tranpose_and_gather_feat, _sigmoid
 
 def _neg_loss(pred, gt):
   ''' Modified focal loss. Exactly the same as CornerNet.
@@ -25,8 +25,8 @@ def _neg_loss(pred, gt):
       pred (batch x c x h x w)
       gt_regr (batch x c x h x w)
   '''
-  pos_inds = gt.eq(1).astype('float32')
-  neg_inds = gt.lt(1).astype('float32')
+  pos_inds = gt.__eq__(1).astype('float32')
+  neg_inds = gt.__lt__(1).astype('float32')
 
   neg_weights = nd.power(1 - gt, 4)
 
@@ -46,8 +46,8 @@ def _neg_loss(pred, gt):
   return loss
 
 def _not_faster_neg_loss(pred, gt):
-    pos_inds = gt.eq(1).astype('float32')
-    neg_inds = gt.lt(1).astype('float32')
+    pos_inds = gt.__eq__(1).astype('float32')
+    neg_inds = gt.__lt__(1).astype('float32')
     num_pos  = pos_inds.astype('float32').sum()
     neg_weights = nd.power(1 - gt, 4)
 
@@ -123,8 +123,9 @@ class RegL1Loss(nn.Block):
 
   def forward(self, output, mask, ind, target):
     pred = _tranpose_and_gather_feat(output, ind)
-    mask = mask.unsqueeze(2).expand_as(pred).astype('float32')
-    loss = F.l1_loss(pred * mask, target * mask, size_average=False)
+    pred = pred.swapaxes(dim1 = 0, dim2 = 1)
+    mask = mask.expand_dims(axis = 2).broadcast_like(pred).astype('float32')
+    loss = nd.abs(pred*mask - target*mask).sum()
     loss = loss / (mask.sum() + 1e-4)
     return loss
 
@@ -134,7 +135,8 @@ class NormRegL1Loss(nn.Block):
 
   def forward(self, output, mask, ind, target):
     pred = _tranpose_and_gather_feat(output, ind)
-    mask = mask.unsqueeze(2).expand_as(pred).astype('float32')
+    pred = pred.swapaxes(dim1 = 0, dim2 = 1)
+    mask = mask.expand_dims(axis = 2).broadcast_like(pred).astype('float32')
     pred = pred / (target + 1e-4)
     target = target * 0 + 1
     loss = nd.abs(pred*mask - target*mask).sum()
@@ -147,6 +149,7 @@ class RegWeightedL1Loss(nn.Block):
 
   def forward(self, output, mask, ind, target):
     pred = _tranpose_and_gather_feat(output, ind)
+    pred = pred.swapaxes(dim1 = 0, dim2 = 1)
     mask = mask.astype('float32')
     loss = nd.abs(pred*mask - target*mask).sum()
     loss = loss / (mask.sum() + 1e-4)
@@ -158,77 +161,10 @@ class L1Loss(nn.Block):
 
   def forward(self, output, mask, ind, target):
     pred = _tranpose_and_gather_feat(output, ind)
-    mask = mask.unsqueeze(2).expand_as(pred).astype('float32')
+    pred = pred.swapaxes(dim1 = 0, dim2 = 1)
+    mask = mask.expand_dims(axis = 2).broadcast_like(pred).astype('float32')
     loss = nd.abs(pred*mask - target*mask).mean()
     return loss
-
-'''
-class CtdetLoss_with_dict(nn.Block):
-  def __init__(self, opt):
-    super(CtdetLoss, self).__init__()
-    self.crit = gluon.loss.L2Loss() if opt.mse_loss else FocalLoss()
-    self.crit_reg = RegL1Loss() if opt.reg_loss == 'l1' else \
-              RegLoss() if opt.reg_loss == 'sl1' else None
-
-    #self.crit_wh = gluon.loss.L1Loss(reduction='sum') if opt.dense_wh else \   # why use sum instead of mean?
-    self.crit_wh = gluon.loss.L1Loss() if opt.dense_wh else \
-              NormRegL1Loss() if opt.norm_wh else \
-              RegWeightedL1Loss() if opt.cat_spec_wh else self.crit_reg
-    self.opt = opt
-
-  def forward(self, outputs, batch):
-    opt = self.opt
-    hm_loss, wh_loss, off_loss = 0, 0, 0
-    for s in range(opt.num_stacks):
-      output = outputs[s]
-      if not opt.mse_loss:
-        output['hm'] = _sigmoid(output['hm'])
-
-      if opt.eval_oracle_hm:
-        output['hm'] = batch['hm']
-      if opt.eval_oracle_wh:
-        output['wh'] = torch.from_numpy(gen_oracle_map(
-          batch['wh'].detach().cpu().numpy(),
-          batch['ind'].detach().cpu().numpy(),
-          output['wh'].shape[3], output['wh'].shape[2])).to(opt.device)
-      if opt.eval_oracle_offset:
-        output['reg'] = torch.from_numpy(gen_oracle_map(
-          batch['reg'].detach().cpu().numpy(),
-          batch['ind'].detach().cpu().numpy(),
-          output['reg'].shape[3], output['reg'].shape[2])).to(opt.device)
-
-      # 1. heatmap loss
-      hm_loss += self.crit(output['hm'], batch['hm']) / opt.num_stacks
-
-      # 2. scale loss
-      if opt.wh_weight > 0:
-        if opt.dense_wh:
-          mask_weight = batch['dense_wh_mask'].sum() + 1e-4
-          wh_loss += (
-            self.crit_wh(output['wh'] * batch['dense_wh_mask'],
-            batch['dense_wh'] * batch['dense_wh_mask']) /
-            mask_weight) / opt.num_stacks
-        elif opt.cat_spec_wh:
-          wh_loss += self.crit_wh(
-            output['wh'], batch['cat_spec_mask'],
-            batch['ind'], batch['cat_spec_wh']) / opt.num_stacks
-        else:
-          wh_loss += self.crit_reg(
-            output['wh'], batch['reg_mask'],
-            batch['ind'], batch['wh']) / opt.num_stacks
-
-      # 3. offset loss
-      if opt.reg_offset and opt.off_weight > 0:
-        off_loss += self.crit_reg(output['reg'], batch['reg_mask'],
-                             batch['ind'], batch['reg']) / opt.num_stacks
-
-    # total loss
-    loss = opt.hm_weight * hm_loss + opt.wh_weight * wh_loss + \
-           opt.off_weight * off_loss
-    loss_stats = {'loss': loss, 'hm_loss': hm_loss,
-                  'wh_loss': wh_loss, 'off_loss': off_loss}
-    return loss, loss_stats
-'''
 
 class CtdetLoss(nn.Block):
   def __init__(self, opt):
@@ -243,7 +179,7 @@ class CtdetLoss(nn.Block):
     self.opt = opt
 
   #def forward(self, outputs, batch):
-  def criterion(outputs, targets_heatmaps, targets_scale, targets_offset, targets_inds, targets_reg_mask):
+  def forward(self, outputs, targets_heatmaps, targets_scale, targets_offset, targets_inds, targets_reg_mask):
     opt = self.opt
     hm_loss, wh_loss, off_loss = 0, 0, 0
     for s in range(opt.num_stacks):
@@ -266,17 +202,17 @@ class CtdetLoss(nn.Block):
           output['reg'].shape[3], output['reg'].shape[2])).as_in_context(opt.device)
 
       # 1. heatmap loss
-      hm_loss += self.crit(output['hm'], targets_heatmaps) / opt.num_stacks
+      hm_loss = hm_loss + self.crit(output['hm'], targets_heatmaps) / opt.num_stacks
 
       # 2. scale loss
       if opt.wh_weight > 0:
-        wh_loss += self.crit_reg(
+        wh_loss = wh_loss + self.crit_reg(
             output['wh'], targets_reg_mask,
             targets_inds, targets_scale) / opt.num_stacks
 
       # 3. offset loss
       if opt.reg_offset and opt.off_weight > 0:
-        off_loss += self.crit_reg(output['reg'], targets_reg_mask,
+        off_loss = off_loss + self.crit_reg(output['reg'], targets_reg_mask,
                              targets_inds, targets_offset) / opt.num_stacks
 
     # total loss
@@ -285,4 +221,5 @@ class CtdetLoss(nn.Block):
     loss_stats = {'loss': loss, 'hm_loss': hm_loss,
                   'wh_loss': wh_loss, 'off_loss': off_loss}
     #return loss, loss_stats
-    return hm_loss, wh_loss, off_loss
+    #return hm_loss, wh_loss, off_loss
+    return loss

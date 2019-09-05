@@ -15,7 +15,7 @@ from mxnet import gluon, init, nd
 from mxnet.gluon import nn
 
 def _sigmoid(x):
-  y = mxnet.symbol.clip(data=x.sigmoid_(), a_min=1e-4, a_max=1-1e-4)
+  y = nd.clip(data=x.sigmoid(), a_min=1e-4, a_max=1-1e-4)
   return y
 
 def _gather_feat(feat, ind, mask=None):
