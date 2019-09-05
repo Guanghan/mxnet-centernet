@@ -10,7 +10,7 @@ from opts import opts
 
 from models.model import create_model, load_model, save_model
 from models.large_hourglass import stacked_hourglass
-from model.decoder import decode_centernet
+from models.decoder import decode_centernet
 from models.loss import CtdetLoss
 
 from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
