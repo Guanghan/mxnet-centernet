@@ -16,7 +16,6 @@ from utils.image import draw_dense_reg
 from dataset.coco import COCO
 
 class CenterCOCODataset(COCO):
-#class CenterCOCODataset(gdata.COCODetection):
   def _coco_box_to_bbox(self, box):
     bbox = np.array([box[0], box[1], box[0] + box[2], box[1] + box[3]],
                     dtype=np.float32)

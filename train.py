@@ -13,17 +13,18 @@ from models.large_hourglass import stacked_hourglass
 from model.decoder import decode_centernet
 from models.loss import CtdetLoss
 
+from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
 
-def get_coco(coco_path="/export/guanghan/coco"):
+def get_coco(coco_path="/export/guanghan/coco", opt):
     """Get coco dataset."""
-    train_dataset = gdata.COCODetection(root= coco_path, splits='instances_train2017')
-    val_dataset = gdata.COCODetection(root= coco_path, splits='instances_val2017', skip_empty=False)
+    train_dataset = CenterCOCODataset(opt, split = 'train')   # custom dataset
+    val_dataset = gdata.COCODetection(root= coco_path, splits='instances_val2017', skip_empty=False)  # gluon official
     eval_metric = COCODetectionMetric(val_dataset,
                                      '_eval',
                                      cleanup=True,
-                                     data_shape=(args.data_shape, args.data_shape))
+                                     data_shape=(opt.input_res, opt.input_res))
     # coco validation is slow, consider increase the validation interval
-    args.val_interval = 10
+    opt.val_interval = 10
     return train_dataset, val_dataset, eval_metric
 
 
@@ -31,9 +32,10 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
     """Get dataloader."""
     width, height = data_shape, data_shape
 
-    batchify_fn = Tuple(Stack(), Stack(), Stack(), Stack())  # stack image, heatmaps, scale, offset
+    batchify_fn = Tuple(Stack(), Stack(), Stack(), Stack(), Stack(), Stack())  # stack image, heatmaps, scale, offset, inds, masks
     val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
 
+    '''
     # image transformer
     img_transform = transforms.Compose([transforms.Resize(640),
                                         transforms.RandomResizedCrop(512, scale=(0.6, 1.3), ratio=(0.75, 1.33)),
@@ -41,13 +43,13 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
                                         transfroms.RandomColorJitter(),
                                         transforms.ToTensor(),
                                         transforms.Normalize(0, 1)])
-
-    train_data = train_dataset.transform_first(img_transform)
-    train_loader = gluon.data.DataLoader( train_data,
+    train_dataset = train_dataset.transform_first(img_transform)
+    '''
+    train_loader = gluon.data.DataLoader( train_dataset,
         batch_size, True, batchify_fn=batchify_fn, last_batch='rollover', num_workers=num_workers)
 
-    val_data = val_dataset.transform_first(img_transform)
-    val_loader = gluon.data.DataLoader( val_data,
+    val_loader = gluon.data.DataLoader(
+        val_dataset.transform(SSDDefaultValTransform(width, height)),
         batch_size, False, batchify_fn=val_batchify_fn, last_batch='keep', num_workers=num_workers)
     return train_loader, val_loader
 
@@ -114,7 +116,8 @@ def validate(model, val_loader, ctx, eval_metric):
         for x, y in zip(data, label):
             # get prediction results
             pred = model(x)
-            heatmaps, scale, offset = pred[0]["hm"], pred[0]["wh"], pred[0]["reg"]
+            #heatmaps, scale, offset = pred[0]["hm"], pred[0]["wh"], pred[0]["reg"]  # 1st stack hourglass result
+            heatmaps, scale, offset = pred[1]["hm"], pred[1]["wh"], pred[1]["reg"]  # 2nd stack hourglass result
             bboxes, scores, ids = decode_centernet(heat=heatmaps, wh=scale, reg=offset, flag_split=True)
             det_ids.append(ids)
             det_scores.append(scores)
@@ -141,9 +144,10 @@ if __name__ == "__main__":
     model.collect_params().initialize(init=init.Xavier())
 
     """ 2. Dataset """
-    train_dataset, val_dataset, eval_metric = get_coco("./data/coco")
+    train_dataset, val_dataset, eval_metric = get_coco("./data/coco", opt)
     ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
     ctx = ctx if ctx else [mx.cpu()]
+    data_shape = opt.input_res
     train_loader, val_loader = get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx)
 
     """ 3. Training """
