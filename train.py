@@ -15,6 +15,8 @@ from models.losses import CtdetLoss
 
 from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
 
+from coco_centernet import CenterCOCODataset
+
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
     train_dataset = CenterCOCODataset(opt, split = 'train')   # custom dataset
