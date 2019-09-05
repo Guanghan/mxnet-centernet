@@ -6,6 +6,7 @@ import sys, os
 sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/dataset")
 sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/dataset")
 
+import mxnet as mx
 from mxnet import nd, gluon, init
 from gluoncv import data as gdata
 from gluoncv.data.batchify import Tuple, Stack, Pad
@@ -61,13 +62,13 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
     return train_loader, val_loader
 
 
-def train(model, train_loader, val_loader, eval_metric, ctx, args):
+def train(model, train_loader, val_loader, eval_metric, ctx, opt):
     """Training pipeline"""
     model.collect_params().reset_ctx(ctx)
 
     trainer = gluon.Trainer(model.collect_params(),
-                           'sgd',
-                           {'learning_rate': args.lr, 'wd': args.wd, 'momentum': args.momentum})
+                           'adam',
+                           {'learning_rate': opt.lr})
     criterion = CtdetLoss()
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -155,7 +156,9 @@ if __name__ == "__main__":
     ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
     ctx = ctx if ctx else [mx.cpu()]
     data_shape = opt.input_res
+    batch_size = opt.batch_size
+    num_workers = opt.num_workers
     train_loader, val_loader = get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx)
 
     """ 3. Training """
-    train(model, train_loader, val_loader, eval_metric, ctx, args)
+    train(model, train_loader, val_loader, eval_metric, ctx, opt)
