@@ -162,14 +162,16 @@ class L1Loss(nn.Block):
     loss = nd.abs(pred*mask - target*mask).mean()
     return loss
 
-
+'''
 class CtdetLoss_with_dict(nn.Block):
   def __init__(self, opt):
     super(CtdetLoss, self).__init__()
     self.crit = gluon.loss.L2Loss() if opt.mse_loss else FocalLoss()
     self.crit_reg = RegL1Loss() if opt.reg_loss == 'l1' else \
               RegLoss() if opt.reg_loss == 'sl1' else None
-    self.crit_wh = gluon.loss.L1Loss(reduction='sum') if opt.dense_wh else \   # why sum? should be mean right?
+
+    #self.crit_wh = gluon.loss.L1Loss(reduction='sum') if opt.dense_wh else \   # why use sum instead of mean?
+    self.crit_wh = gluon.loss.L1Loss() if opt.dense_wh else \
               NormRegL1Loss() if opt.norm_wh else \
               RegWeightedL1Loss() if opt.cat_spec_wh else self.crit_reg
     self.opt = opt
@@ -226,7 +228,7 @@ class CtdetLoss_with_dict(nn.Block):
     loss_stats = {'loss': loss, 'hm_loss': hm_loss,
                   'wh_loss': wh_loss, 'off_loss': off_loss}
     return loss, loss_stats
-
+'''
 
 class CtdetLoss(nn.Block):
   def __init__(self, opt):
@@ -234,7 +236,8 @@ class CtdetLoss(nn.Block):
     self.crit = gluon.loss.L2Loss() if opt.mse_loss else FocalLoss()
     self.crit_reg = RegL1Loss() if opt.reg_loss == 'l1' else \
               RegLoss() if opt.reg_loss == 'sl1' else None
-    self.crit_wh = torch.nn.L1Loss(reduction='sum') if opt.dense_wh else \
+    #self.crit_wh = gluon.loss.L1Loss(reduction='sum') if opt.dense_wh else \   # why use sum instead of mean?
+    self.crit_wh = gluon.loss.L1Loss() if opt.dense_wh else \
               NormRegL1Loss() if opt.norm_wh else \
               RegWeightedL1Loss() if opt.cat_spec_wh else self.crit_reg
     self.opt = opt
@@ -248,7 +251,7 @@ class CtdetLoss(nn.Block):
       if not opt.mse_loss:
         output['hm'] = _sigmoid(output['hm'])
 
-      # Optional: Use ground truth for validation       
+      # Optional: Use ground truth for validation
       if opt.eval_oracle_hm:
         output['hm'] = targets_heatmaps
       if opt.eval_oracle_wh:
