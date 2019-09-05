@@ -84,7 +84,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
             targets_inds = gluon.utils.split_and_load(batch[4], ctx_list=ctx, batch_axis=0)
             targets_mask = gluon.utils.split_and_load(batch[5], ctx_list=ctx, batch_axis=0)
 
-            print("batch number: ", i)
+            #print("batch number: ", i)
             with autograd.record():
                 preds = model(X[0])
 
@@ -115,7 +115,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
             cumulative_train_loss += sum_loss.as_in_context(ctx[0]).sum()
             if i % 200 == 0:
                 print("Iter: {}, loss: {}".format(i, sum_loss.as_in_context(ctx[0])))
-                print("cumulative_train_loss: ", cumulative_train_loss)
+                #print("cumulative_train_loss: ", cumulative_train_loss)
             training_samples += opt.batch_size // num_gpus
 
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples

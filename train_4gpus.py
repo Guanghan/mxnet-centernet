@@ -43,16 +43,6 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
     batchify_fn = Tuple(Stack(), Stack(), Stack(), Stack(), Stack(), Stack())  # stack image, heatmaps, scale, offset, inds, masks
     val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
 
-    '''
-    # image transformer
-    img_transform = transforms.Compose([transforms.Resize(640),
-                                        transforms.RandomResizedCrop(512, scale=(0.6, 1.3), ratio=(0.75, 1.33)),
-                                        transforms.RandomFlipLeftRight(),
-                                        transfroms.RandomColorJitter(),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(0, 1)])
-    train_dataset = train_dataset.transform_first(img_transform)
-    '''
     train_loader = gluon.data.DataLoader( train_dataset,
         batch_size, True, batchify_fn=batchify_fn, last_batch='rollover', num_workers=num_workers)
 
@@ -64,7 +54,7 @@ def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_worke
 
 def train(model, train_loader, val_loader, eval_metric, ctx, opt):
     """Training pipeline"""
-    #model.collect_params().reset_ctx(ctx)
+    model.collect_params().reset_ctx(ctx)
 
     trainer = gluon.Trainer(model.collect_params(),
                            'adam',
@@ -73,8 +63,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
 
     for epoch in range(0, opt.num_epochs):
         # training loop
-        #cumulative_train_loss = nd.zeros(1, ctx=ctx[0])
-        cumulative_train_loss = nd.zeros(1)
+        cumulative_train_loss = nd.zeros(1, ctx=ctx[0])
         training_samples = 0
 
         for i, batch in enumerate(train_loader):
@@ -95,19 +84,15 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
                 loss.backward()
 
             # normalize loss by batch-size
-            trainer.step(opt.batch_size, ignore_stale_grad=True)
+            num_gpus = len(opt.gpus)
+            trainer.step(opt.batch_size // num_gpus, ignore_stale_grad=True)
 
-            '''
             for loss in losses:
-                cumulative_train_loss += loss.as_in_context(mx.context.cpu(0)).sum()
-                #cumulative_train_loss += loss.sum().as_in_context(mx.context.cpu(0))
-                #cumulative_train_loss += loss.sum().as_in_context(ctx[0])
-                #print("cumulative_train_loss: ", cumulative_train_loss)
-                training_samples += opt.batch_size
+                cumulative_train_loss += loss.sum().as_in_context(ctx[0])
+                training_samples += opt.batch_size // num_gpus
 
             if i % 200 == 0:
                 print("Iter: {}, loss: {}".format(i, losses[0].as_in_context(ctx[0])))
-            '''
 
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
         print("Epoch {}, training loss: {:.2f}".format(epoch, train_loss_per_epoch))

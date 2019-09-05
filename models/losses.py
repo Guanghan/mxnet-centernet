@@ -40,6 +40,7 @@ def _neg_loss(pred, gt):
   neg_loss = neg_loss.sum()
 
   if num_pos == 0:
+  #if num_pos.__eq__(0):
     loss = loss - neg_loss
   else:
     loss = loss - (pos_loss + neg_loss) / num_pos
