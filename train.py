@@ -18,6 +18,7 @@ from models.decoder import decode_centernet
 from models.losses import CtdetLoss
 
 from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
+from gluoncv.utils.metrics.coco_detection import COCODetectionMetric
 
 from coco_centernet import CenterCOCODataset
 
