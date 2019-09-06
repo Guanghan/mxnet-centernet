@@ -122,7 +122,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
         print("Epoch {}, training loss: {:.2f}".format(epoch, train_loss_per_epoch))
 
         # validation loop
-        if epoch % self.val_interval != 0: continue
+        if epoch % opt.val_interval != 0: continue
         map_name, mean_ap = validate(model, val_loader, ctx, eval_metric)
         val_msg = '\n'.join(['{}={}'.format(k, v) for k, v in zip(map_name, mean_ap)])
         logger.info('[Epoch {}] Validation: \n{}'.format(epoch, val_msg))

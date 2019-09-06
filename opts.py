@@ -97,6 +97,10 @@ class opts(object):
     self.parser.add_argument('--trainval', action='store_true',
                              help='include validation in training and '
                                   'test on test set')
+    self.parser.add_argument('--flag_finetune', action='store_true',
+                             help='Finetuning. Loading pre-trained model from --pretrained_path ')
+    self.parser.add_argument('--pretrained_path', type=str, default='/root/CenterNet-Gluon/CenterNet_hourglass_0012.params',
+                             help='Finetuning from this model.')
 
     # test
     self.parser.add_argument('--flip_test', action='store_true',

@@ -25,7 +25,7 @@ print("output: xy_offset", Y[0]["reg"].shape)
 param = model.collect_params()
 param_keys = param.keys()
 param_keys_residual_1 = [param[param_key] for param_key in param_keys if "hourglassnet0_residual1_conv1_weight" in param_key]
-print(param_keys_residual_1)
+#print(param_keys_residual_1)
 
 flag_save_model = False
 if flag_save_model is True:
