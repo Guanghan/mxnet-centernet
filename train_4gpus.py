@@ -67,7 +67,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
         training_samples = 0
 
         for i, batch in enumerate(train_loader):
-            print("Iter: {}".format(i))
+            #print("Iter: {}".format(i))
 
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
             targets_heatmaps = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)  # heatmaps: (batch, num_classes, H/S, W/S)
@@ -91,7 +91,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
                 cumulative_train_loss += loss.sum().as_in_context(ctx[0])
                 training_samples += opt.batch_size // num_gpus
 
-            if i % 200 == 0:
+            if i % 200 == 1:
                 print("Iter: {}, loss: {}".format(i, losses[0].as_in_context(ctx[0])))
 
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
