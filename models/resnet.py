@@ -26,6 +26,7 @@ from mxnet.context import cpu
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon import nn
 from mxnet.gluon.nn import BatchNorm
+from mxnet.gluon.contrib.cnn.conv_layers import DeformableConvolution
 
 from models.model import create_model, load_model, save_model
 
@@ -54,7 +55,6 @@ def fill_up_weights(up, ctx = cpu()):
         w[c, 0, :, :] = w[0, 0, :, :]
 
 def fill_fc_weights(layers, single_layer= False, ctx = cpu()):
-    print(layers)
     if single_layer:
         m = layers
         fill_fc_weights_single_layer(m, ctx)
@@ -324,13 +324,17 @@ class PoseResNet(HybridBlock):
 
             print("Deconv {}, fc, in_channels: {}, out_channels: {}".format(i, self.inplanes, planes))
 
-            #fc = DCN(self.inplanes, planes,
-            #        kernel_size=(3,3), stride=1,
-            #        padding=1, dilation=1, deformable_groups=1)
+            fc = DeformableConvolution(planes,
+                     kernel_size=3, strides=1, num_deformable_group=1,
+                     in_channels = self.inplanes,
+                     padding=1, dilation=1, use_bias=False) # http://34.201.8.176/versions/1.5.0/_modules/mxnet/gluon/contrib/cnn/conv_layers.html
+            '''
             fc = nn.Conv2D(planes,
                      kernel_size=3, strides=1,
                      in_channels = self.inplanes,
                      padding=1, dilation=1, use_bias=False)
+            '''
+
             '''
             fill_fc_weights(fc, single_layer=True)
             '''
@@ -351,10 +355,10 @@ class PoseResNet(HybridBlock):
             '''
 
             layers.append(fc)
-            layers.append(nn.BatchNorm(planes, momentum=BN_MOMENTUM))
+            layers.append(nn.BatchNorm(momentum=BN_MOMENTUM))
             layers.append(nn.LeakyReLU(0))
             layers.append(up)
-            layers.append(nn.BatchNorm(planes, momentum=BN_MOMENTUM))
+            layers.append(nn.BatchNorm(momentum=BN_MOMENTUM))
             layers.append(nn.LeakyReLU(0))
             self.inplanes = planes
 
@@ -364,12 +368,12 @@ class PoseResNet(HybridBlock):
 
     def hybrid_forward(self, F, x):
         x = self.features(x)
-        print(x.shape)
+        #print(x.shape)
         x = self.deconv_layers(x)
-        print(x.shape)
+        #print(x.shape)
         ret = {}
         for head in self.heads:
-            ret[head] = self.__getattr__(head)(x)
+            ret[head] = self.__getattribute__(head)(x)
         return [ret]
 
 

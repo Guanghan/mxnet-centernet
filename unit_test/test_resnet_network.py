@@ -22,6 +22,7 @@ Y   = model(X)
 print("output: heatmaps", Y[0]["hm"].shape)
 print("output: wh_scale", Y[0]["wh"].shape)
 print("output: xy_offset", Y[0]["reg"].shape)
+#print("output: xy_offset", Y[0]["reg"])
 
 param = model.collect_params()
 param_keys = param.keys()

@@ -156,11 +156,15 @@ if __name__ == "__main__":
     """ 1. network """
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
-    model = create_model(opt.arch, opt.heads, opt.head_conv)
+    if opt.arch == "res_18":
+        model = get_pose_net(opt.heads, opt.head_conv, num_layers=18, load_pretrained =True)
+    else:
+        model = create_model(opt.arch, opt.heads, opt.head_conv)
+
     if opt.flag_finetune:
         model = load_model(model, opt.pretrained_path, ctx = ctx)
         opt.cur_epoch = int(opt.pretrained_path.split('.')[0][-4:])
-    else:
+    elif opt.arch != "res_18":
         opt.cur_epoch = 0
         model.collect_params().initialize(init=init.Xavier(), ctx = ctx)
 
