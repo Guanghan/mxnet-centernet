@@ -66,6 +66,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
 
     for epoch in range(opt.cur_epoch, opt.num_epochs):
         # training loop
+        print("Training Epoch: {}".format(epoch))
         cumulative_train_loss = nd.zeros(1, ctx=ctx[0])
         training_samples = 0
 
@@ -144,8 +145,6 @@ def validate(model, val_loader, ctx, eval_metric):
     return eval_metric.get()
 
 
-# call:
-# python train.py ctdet --arch hourglass
 if __name__ == "__main__":
     opt = opts().init()
     ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
