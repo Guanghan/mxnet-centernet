@@ -1,7 +1,7 @@
-from models.large_hourglass import get_large_hourglass_net
+from models.hourglass import get_hourglass_net
 
 _model_factory = {
-    'hourglass': get_large_hourglass_net,
+    'hourglass': get_hourglass_net,
 }
 
 

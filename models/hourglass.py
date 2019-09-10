@@ -439,7 +439,7 @@ class HourglassNet(stacked_hourglass):
 """
 6. Constructor & interface for outside call
 """
-def get_large_hourglass_net(num_layers, heads, head_conv):
+def get_hourglass_net(num_layers, heads, head_conv):
     model = HourglassNet(heads, 2)
     #model = HourglassNet(heads, 1)
     return model

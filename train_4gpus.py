@@ -14,7 +14,7 @@ from gluoncv.data.batchify import Tuple, Stack, Pad
 from opts import opts
 
 from models.model import create_model, load_model, save_model
-from models.large_hourglass import stacked_hourglass
+from models.hourglass import stacked_hourglass
 from models.decoder import decode_centernet
 from models.losses import CtdetLoss
 

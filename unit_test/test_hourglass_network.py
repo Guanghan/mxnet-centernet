@@ -5,7 +5,7 @@ sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/")
 from models.model import create_model, load_model, save_model
 from opts import opts
 
-from models.large_hourglass import stacked_hourglass
+from models.hourglass import stacked_hourglass
 from mxnet import nd, gluon, init
 import mxnet as mx
 
