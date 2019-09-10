@@ -36,7 +36,7 @@ class opts(object):
     # system
     self.parser.add_argument('--gpus', default='0',
                              help='-1 for CPU, use comma for multiple gpus')
-    self.parser.add_argument('--num_workers', type=int, default=4,
+    self.parser.add_argument('--num_workers', type=int, default=10,
                              help='dataloader threads. 0 for single-thread.')
     self.parser.add_argument('--not_cuda_benchmark', action='store_true',
                              help='disable when the input size is not fixed.')
@@ -80,8 +80,8 @@ class opts(object):
                              help='input width. -1 for default from dataset.')
 
     # train
-    self.parser.add_argument('--lr', type=float, default=1.25e-4,
-                             help='learning rate for batch size 32.')
+    self.parser.add_argument('--lr', type=float, default=2.5e-4,
+                             help='learning rate for batch size 24.')
     self.parser.add_argument('--lr_step', type=str, default='90,120',
                              help='drop learning rate by 10.')
     self.parser.add_argument('--num_epochs', type=int, default=140,
@@ -99,7 +99,7 @@ class opts(object):
                                   'test on test set')
     self.parser.add_argument('--flag_finetune', action='store_true',
                              help='Finetuning. Loading pre-trained model from --pretrained_path ')
-    self.parser.add_argument('--pretrained_path', type=str, default='/root/CenterNet-Gluon/CenterNet_hourglass_0012.params',
+    self.parser.add_argument('--pretrained_path', type=str, default='/root/CenterNet-Gluon/CenterNet_hourglass_0030.params',
                              help='Finetuning from this model.')
 
     # test

@@ -15,7 +15,7 @@ def create_model(arch, heads, head_conv_channels):
     return model
 
 def load_model(model, model_load_path, ctx):
-    model.load_parameters(model_load_path, ctx=ctx)
+    model.load_parameters(model_load_path, ctx=ctx, ignore_extra=True)
     return model
 
 def save_model(model, model_save_path):

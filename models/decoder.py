@@ -12,7 +12,6 @@ import mxnet as mx
 from mxnet import autograd, gluon, init, nd
 from mxnet.gluon import loss as gloss, nn
 
-#from tensor_utils import _gather_feat, _tranpose_and_gather_feat
 from models.tensor_utils import _gather_feat, _tranpose_and_gather_feat
 
 
@@ -79,24 +78,6 @@ def decode_centernet(heat, wh, reg=None, cat_spec_wh=False, K=100, flag_split=Fa
 
     clses  = nd.reshape(clses, (batch, K, 1)).astype('float32')
     scores = nd.reshape(scores, (batch, K, 1))
-
-    '''
-    print("wh.shape = ", wh.shape)
-    offset_x = nd.slice_axis(wh, axis = 2, begin=0, end=1)
-    offset_y = nd.slice_axis(wh, axis = 2, begin=1, end=2)
-    print("xs.shape = ", xs.shape)
-    print("offset_x.shape = ", offset_x.shape)
-
-    print("ys.shape = ", ys.shape)
-    print("offset_y.shape = ", offset_y.shape)
-
-    x1s = xs - offset_x
-    x2s = xs + offset_x
-    y1s = ys - offset_y
-    y2s = ys + offset_y
-
-    bboxes = nd.concat(x1s, y1s, x2s, y2s, dim=2)
-    '''
 
     bboxes =  nd.concat(xs - wh[:, :, 0:1] / 2,
                         ys - wh[:, :, 1:2] / 2,

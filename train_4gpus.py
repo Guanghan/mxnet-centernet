@@ -2,7 +2,7 @@
 Author: Guanghan Ning
 Date:   August, 2019
 """
-import sys, os
+import sys, os, time
 sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/dataset")
 sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/dataset")
 
@@ -69,6 +69,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
         cumulative_train_loss = nd.zeros(1, ctx=ctx[0])
         training_samples = 0
 
+        start = time.time()
         for i, batch in enumerate(train_loader):
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0)
             targets_heatmaps = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0)  # heatmaps: (batch, num_classes, H/S, W/S)
@@ -95,18 +96,19 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
             if i % 200 == 1:
                 print("\t Iter: {}, loss: {}".format(i, losses[0].as_in_context(ctx[0]).asscalar()))
 
+        train_hours = (time.time() - start) / 3600.0 # 1 epoch training time in hours
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
-        print("Epoch {}, training loss: {:.2f}".format(epoch, train_loss_per_epoch))
+        print("Epoch {}, time: {:.1f}, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
+
+        # Save parameters
+        prefix = "CenterNet_" + opt.arch
+        save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
 
         # validation loop
         if epoch % opt.val_interval != 0: continue
         map_name, mean_ap = validate(model, val_loader, ctx, eval_metric)
         val_msg = '\n'.join(['{}={}'.format(k, v) for k, v in zip(map_name, mean_ap)])
         print('[Epoch {}] Validation: \n{}'.format(epoch, val_msg))
-
-        # Save parameters
-        prefix = "CenterNet_" + opt.arch
-        save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
 
 
 def validate(model, val_loader, ctx, eval_metric):
@@ -124,10 +126,8 @@ def validate(model, val_loader, ctx, eval_metric):
         for x, y in zip(data, label):
             # get prediction results
             pred = model(x)
-            #heatmaps, scale, offset = pred[0]["hm"], pred[0]["wh"], pred[0]["reg"]  # 1st stack hourglass result
-            heatmaps, scale, offset = pred[1]["hm"], pred[1]["wh"], pred[1]["reg"]  # 2nd stack hourglass result
+            heatmaps, scale, offset = pred[-1]["hm"], pred[-1]["wh"], pred[-1]["reg"]  # last stack of hourglass result
 
-            #DEBUGING decode_centernet:
             bboxes, scores, ids = decode_centernet(heat=heatmaps, wh=scale, reg=offset, flag_split=True)
 
             det_ids.append(ids)
