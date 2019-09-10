@@ -103,7 +103,9 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
 
         # Save parameters
         prefix = "CenterNet_" + opt.arch
-        save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
+        model_path = '{:s}_{:04d}.params'.format(prefix, epoch)
+        if not os.path.exists(model_path):
+            save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
 
         # validation loop
         if epoch % opt.val_interval != 0: continue

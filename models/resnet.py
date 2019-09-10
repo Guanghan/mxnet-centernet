@@ -20,16 +20,58 @@
 """ResNets, implemented in Gluon."""
 from __future__ import division
 
+import os
+import mxnet as mx
 from mxnet.context import cpu
 from mxnet.gluon.block import HybridBlock
 from mxnet.gluon import nn
 from mxnet.gluon.nn import BatchNorm
+
+from models.model import create_model, load_model, save_model
+
+BN_MOMENTUM = 0.1
+
+
+def download_pretrained_model():
+    import gluoncv
+    net = gluoncv.model_zoo.get_model("resnet18_v1", pretrained=True)
+    return
 
 # Helpers
 def _conv3x3(channels, stride, in_channels):
     return nn.Conv2D(channels, kernel_size=3, strides=stride, padding=1,
                      use_bias=False, in_channels=in_channels)
 
+def fill_up_weights(up, ctx = cpu()):
+    w = up.weight.data()
+    f = math.ceil(w.shape[2] / 2)
+    c = (2 * f - 1 - f % 2) / (2. * f)
+    for i in range(w.shape[2]):
+        for j in range(w.shape[3]):
+            w[0, 0, i, j] = \
+                (1 - math.fabs(i / f - c)) * (1 - math.fabs(j / f - c))
+    for c in range(1, w.shape[0]):
+        w[c, 0, :, :] = w[0, 0, :, :]
+
+def fill_fc_weights(layers, single_layer= False, ctx = cpu()):
+    print(layers)
+    if single_layer:
+        m = layers
+        fill_fc_weights_single_layer(m, ctx)
+    else:
+        for m in layers:
+            fill_fc_weights_single_layer(m, ctx)
+
+
+def fill_fc_weights_single_layer(m, ctx = cpu()):
+    if isinstance(m, nn.Conv2D):
+        params = m.params
+        for param_name in params.keys():
+            param = params[param_name]
+            if "weight" in param_name:
+                param.initialize(init = mx.init.Normal(sigma=0.001), ctx = ctx)
+            elif "bias" in param_name:
+                param.initialize(init = mx.init.Constant(0), ctx = ctx)
 
 # Blocks
 class BasicBlockV1(HybridBlock):
@@ -177,8 +219,158 @@ class ResNetV1(HybridBlock):
     def hybrid_forward(self, F, x):
         x = self.features(x)
         x = self.output(x)
-
         return x
+
+
+class PoseResNet(HybridBlock):
+    def __init__(self, block, layers, heads, head_conv, channels,
+                 version = 1, ctx=cpu(), root='~/.mxnet/models', use_se=False, **kwargs):
+        super(PoseResNet, self).__init__(**kwargs)
+        with self.name_scope():
+            self.features = nn.HybridSequential(prefix='')
+
+            thumbnail = False
+            norm_layer = BatchNorm
+            norm_kwargs = None
+            last_gamma = False
+            if thumbnail:
+                self.features.add(_conv3x3(channels[0], 1, 0))
+            else:
+                self.features.add(nn.Conv2D(channels[0], 7, 2, 3, use_bias=False))
+                self.features.add(norm_layer(**({} if norm_kwargs is None else norm_kwargs)))
+                self.features.add(nn.Activation('relu'))
+                self.features.add(nn.MaxPool2D(3, 2, 1))
+
+            for i, num_layer in enumerate(layers):
+                stride = 1 if i == 0 else 2
+                self.features.add(self._make_layer(block, num_layer, channels[i+1],
+                                                   stride, i+1, in_channels=channels[i],
+                                                   last_gamma=last_gamma, use_se=use_se,
+                                                   norm_layer=norm_layer, norm_kwargs=norm_kwargs))
+
+        # used for deconv layers
+        self.deconv_with_bias = False
+        self.inplanes = 512 #64
+        self.heads = heads
+
+        self.deconv_layers = self._make_deconv_layer(
+            3,
+            [256, 128, 64],
+            [4, 4, 4],
+        )
+        for head in self.heads:
+            classes = self.heads[head]
+            if head_conv > 0:
+                fc = nn.HybridSequential()
+                fc.add(nn.Conv2D(head_conv, kernel_size=3, in_channels = 64, padding=1, use_bias=True),
+                       nn.LeakyReLU(0),
+                       nn.Conv2D(classes, kernel_size=1, in_channels = head_conv, strides=1, padding=0, use_bias=True))
+                '''
+                if 'hm' in head:
+                    fc[-1].bias.set_data(-2.19)
+                else:
+                    fill_fc_weights(fc)
+                '''
+            else:
+                fc = nn.Conv2D(classes,kernel_size=1, in_channels=64, strides=1, padding=0, use_bias=True)
+                '''
+                if 'hm' in head:
+                    fc.bias.data.fill_(-2.19)
+                else:
+                    fill_fc_weights(fc, single_layer=True)
+                '''
+            self.__setattr__(head, fc)
+
+
+    def _make_layer(self, block, layers, channels, stride, stage_index, in_channels=0,
+                    last_gamma=False, use_se=False, norm_layer=BatchNorm, norm_kwargs=None):
+        layer = nn.HybridSequential(prefix='stage%d_'%stage_index)
+        with layer.name_scope():
+            layer.add(block(channels, stride, channels != in_channels, in_channels=in_channels,
+                            last_gamma=last_gamma, use_se=use_se, prefix='',
+                            norm_layer=norm_layer, norm_kwargs=norm_kwargs))
+            for _ in range(layers-1):
+                layer.add(block(channels, 1, False, in_channels=channels,
+                                last_gamma=last_gamma, use_se=use_se, prefix='',
+                                norm_layer=norm_layer, norm_kwargs=norm_kwargs))
+        return layer
+
+
+    def _get_deconv_cfg(self, deconv_kernel, index):
+        if deconv_kernel == 4:
+            padding = 1
+            output_padding = 0
+        elif deconv_kernel == 3:
+            padding = 1
+            output_padding = 1
+        elif deconv_kernel == 2:
+            padding = 0
+            output_padding = 0
+        return deconv_kernel, padding, output_padding
+
+
+    def _make_deconv_layer(self, num_layers, num_filters, num_kernels):
+        assert num_layers == len(num_filters), \
+            'ERROR: num_deconv_layers is different len(num_deconv_filters)'
+        assert num_layers == len(num_kernels), \
+            'ERROR: num_deconv_layers is different len(num_deconv_filters)'
+
+        layers = []
+        for i in range(num_layers):
+            kernel, padding, output_padding = \
+                self._get_deconv_cfg(num_kernels[i], i)
+
+            planes = num_filters[i]
+
+            print("Deconv {}, fc, in_channels: {}, out_channels: {}".format(i, self.inplanes, planes))
+
+            #fc = DCN(self.inplanes, planes,
+            #        kernel_size=(3,3), stride=1,
+            #        padding=1, dilation=1, deformable_groups=1)
+            fc = nn.Conv2D(planes,
+                     kernel_size=3, strides=1,
+                     in_channels = self.inplanes,
+                     padding=1, dilation=1, use_bias=False)
+            '''
+            fill_fc_weights(fc, single_layer=True)
+            '''
+
+
+            print("Deconv {}, up, in_channels: {}, out_channels: {}".format(i, planes, planes))
+
+            up = nn.Conv2DTranspose(
+                    channels=planes,
+                    kernel_size=kernel,
+                    in_channels=planes,
+                    strides=2,
+                    padding=padding,
+                    output_padding=output_padding,
+                    use_bias=self.deconv_with_bias)
+            '''
+            fill_up_weights(up)
+            '''
+
+            layers.append(fc)
+            layers.append(nn.BatchNorm(planes, momentum=BN_MOMENTUM))
+            layers.append(nn.LeakyReLU(0))
+            layers.append(up)
+            layers.append(nn.BatchNorm(planes, momentum=BN_MOMENTUM))
+            layers.append(nn.LeakyReLU(0))
+            self.inplanes = planes
+
+        deconv_layers = nn.HybridSequential()
+        deconv_layers.add(*layers)
+        return deconv_layers
+
+    def hybrid_forward(self, F, x):
+        x = self.features(x)
+        print(x.shape)
+        x = self.deconv_layers(x)
+        print(x.shape)
+        ret = {}
+        for head in self.heads:
+            ret[head] = self.__getattr__(head)(x)
+        return [ret]
 
 
 # Specification
@@ -188,9 +380,26 @@ resnet_spec = {18: ('basic_block', [2, 2, 2, 2], [64, 64, 128, 256, 512]),
                101: ('bottle_neck', [3, 4, 23, 3], [64, 256, 512, 1024, 2048]),
                152: ('bottle_neck', [3, 8, 36, 3], [64, 256, 512, 1024, 2048])}
 
-resnet_net_versions = [ResNetV1, ResNetV2]
-resnet_block_versions = [{'basic_block': BasicBlockV1, 'bottle_neck': BottleneckV1},
-                         {'basic_block': BasicBlockV2, 'bottle_neck': BottleneckV2}]
+resnet_net_versions = [ResNetV1]
+resnet_block_versions = [{'basic_block': BasicBlockV1, 'bottle_neck': BottleneckV1}]
+
+
+def get_pose_net(heads, head_conv=256, num_layers=18, load_pretrained = False, ctx = cpu()):
+    block_type, layers, channels = resnet_spec[num_layers]
+
+    version = 1  # Now I only implement resnet_v1
+    block_class = resnet_block_versions[version-1][block_type]
+
+    model = PoseResNet(block_class, layers, heads, head_conv, channels,
+                       version = 1, ctx=cpu(), root='~/.mxnet/models', use_se=False)
+
+    initializer=mx.init.Xavier(rnd_type='gaussian', factor_type="in", magnitude=2)
+    model.collect_params().initialize(init= initializer, ctx = ctx)
+
+    if num_layers == 18 and load_pretrained:
+        model_load_path = '/Users/guanghan.ning/.mxnet/models/resnet18_v1-a0666292.params'
+        model = load_model(model, model_load_path, ctx = ctx)
+    return model
 
 
 # Constructor
