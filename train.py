@@ -23,6 +23,8 @@ from gluoncv.utils.metrics.coco_detection import COCODetectionMetric  # https://
 
 from coco_centernet import CenterCOCODataset
 
+from model.resnet import get_pose_net
+
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
     train_dataset = CenterCOCODataset(opt, split = 'train')   # custom dataset
@@ -99,7 +101,7 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
 
         train_hours = (time.time() - start) / 3600.0 # 1 epoch training time in hours
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
-        print("Epoch {}, time: {:.1f}, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
+        print("Epoch {}, time: {:.1f} hours, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
 
         # Save parameters
         prefix = "CenterNet_" + opt.arch
@@ -157,15 +159,15 @@ if __name__ == "__main__":
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
     if opt.arch == "res_18":
-        model = get_pose_net(opt.heads, opt.head_conv, num_layers=18, load_pretrained =True)
+        model = get_pose_net(opt.heads, opt.head_conv, num_layers=18, load_pretrained =True, ctx = ctx)
     else:
         model = create_model(opt.arch, opt.heads, opt.head_conv)
 
+    opt.cur_epoch = 0
     if opt.flag_finetune:
         model = load_model(model, opt.pretrained_path, ctx = ctx)
         opt.cur_epoch = int(opt.pretrained_path.split('.')[0][-4:])
     elif opt.arch != "res_18":
-        opt.cur_epoch = 0
         model.collect_params().initialize(init=init.Xavier(), ctx = ctx)
 
     """ 2. Dataset """

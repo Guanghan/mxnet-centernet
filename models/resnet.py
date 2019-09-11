@@ -401,7 +401,8 @@ def get_pose_net(heads, head_conv=256, num_layers=18, load_pretrained = False, c
     model.collect_params().initialize(init= initializer, ctx = ctx)
 
     if num_layers == 18 and load_pretrained:
-        model_load_path = '/Users/guanghan.ning/.mxnet/models/resnet18_v1-a0666292.params'
+        #model_load_path = '/Users/guanghan.ning/.mxnet/models/resnet18_v1-a0666292.params'
+        model_load_path = '/root/.mxnet/models/resnet18_v1-a0666292.params'
         model = load_model(model, model_load_path, ctx = ctx)
     return model
 
