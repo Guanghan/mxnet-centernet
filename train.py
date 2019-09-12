@@ -23,7 +23,7 @@ from gluoncv.utils.metrics.coco_detection import COCODetectionMetric  # https://
 
 from coco_centernet import CenterCOCODataset
 
-from model.resnet import get_pose_net
+from models.resnet import get_pose_net
 
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
@@ -158,10 +158,10 @@ if __name__ == "__main__":
     """ 1. network """
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
-    if opt.arch == "res_18":
-        model = get_pose_net(opt.heads, opt.head_conv, num_layers=18, load_pretrained =True, ctx = ctx)
-    else:
-        model = create_model(opt.arch, opt.heads, opt.head_conv)
+    #if opt.arch == "res_18":
+    #    model = get_pose_net(18, opt.heads, opt.head_conv, load_pretrained =True, ctx = ctx)
+    #else:
+    model = create_model(opt.arch, opt.heads, opt.head_conv)
 
     opt.cur_epoch = 0
     if opt.flag_finetune:

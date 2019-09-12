@@ -388,7 +388,7 @@ resnet_net_versions = [ResNetV1]
 resnet_block_versions = [{'basic_block': BasicBlockV1, 'bottle_neck': BottleneckV1}]
 
 
-def get_pose_net(heads, head_conv=256, num_layers=18, load_pretrained = False, ctx = cpu()):
+def get_pose_net(num_layers, heads, head_conv=256, load_pretrained = False, ctx = cpu()):
     block_type, layers, channels = resnet_spec[num_layers]
 
     version = 1  # Now I only implement resnet_v1

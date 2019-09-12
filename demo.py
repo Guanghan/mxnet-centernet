@@ -103,13 +103,13 @@ def format_results(ret):
 
 def visualize_results(formated_ret, img_path, save_path):
     img = cv2.imread(img_path)
-    resized = cv2.resize(img, (512, 512))
+    #resized = cv2.resize(img, (512, 512))
     for bbox in formated_ret:
         x1, y1, w, h = bbox
-        #cv2.rectangle(img, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
-        cv2.rectangle(resized, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
-    #cv2.imwrite(save_path, img)
-    cv2.imwrite(save_path, resized)
+        cv2.rectangle(img, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
+        #cv2.rectangle(resized, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
+    cv2.imwrite(save_path, img)
+    #cv2.imwrite(save_path, resized)
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ import mxnet as mx
 print('Creating model...')
 opt = opts().init()
 print(opt.arch)
-model = get_pose_net(opt.heads, opt.head_conv, num_layers=18, load_pretrained =True)
+model = get_pose_net(18, opt.heads, opt.head_conv, load_pretrained =True)
 
 #model.collect_params().initialize(init=init.Xavier())
 
