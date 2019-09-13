@@ -107,29 +107,10 @@ def visualize_results(formated_ret, img_path, save_path):
         x1, y1, w, h = bbox
         center_x = int(x1 + w * 0.5)
         center_y = int(y1 + h * 0.5)
-        cv2.circle(img, (center_x, center_y), 5, (255, 0, 0), 3)
+        cv2.circle(img, (center_x, center_y), 4, (255, 0, 0), 2)
+        cv2.rectangle(img, (x1, y1), (x1+w, y1+h), (0, 255, 0), 2)
     cv2.imwrite(save_path, img)
 
-'''
-def visualize_results(formated_ret, img_path, save_path):
-    img = cv2.imread(img_path)
-    #resized = cv2.resize(img, (512, 512))
-    for bbox in formated_ret:
-        x1, y1, w, h = bbox
-        cv2.rectangle(img, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
-        #cv2.rectangle(resized, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
-    cv2.imwrite(save_path, img)
-    #cv2.imwrite(save_path, resized)
-
-def visualize_results(formated_ret, img_path, save_path):
-    img = cv2.imread(img_path)
-    resized = cv2.resize(img, (256, 256))
-    for bbox in formated_ret:
-        x1, y1, w, h = bbox
-        cv2.rectangle(resized, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
-    cv2.imwrite(save_path, resized)
-
-'''
 
 if __name__ == '__main__':
   opt = opts().init()
