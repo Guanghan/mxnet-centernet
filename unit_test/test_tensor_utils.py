@@ -20,7 +20,6 @@ def _gather_feat(feat, ind, mask=None):
     return output
 '''
 
-
 def _gather_feat(feat, ind, mask=None):
     # K cannot be 1 for this implementation
     K = ind.shape[1]

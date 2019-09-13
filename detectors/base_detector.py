@@ -87,8 +87,6 @@ class BaseDetector(object):
     def run(self, image_or_path_or_tensor, meta=None):
         load_time, pre_time, net_time, dec_time, post_time = 0, 0, 0, 0, 0
         merge_time, tot_time = 0, 0
-        #debugger = Debugger(dataset=self.opt.dataset, ipynb=(self.opt.debug==3),
-        #                    theme=self.opt.debugger_theme)
         start_time = time.time()
         pre_processed = False
         if isinstance(image_or_path_or_tensor, np.ndarray):
@@ -113,7 +111,6 @@ class BaseDetector(object):
                 meta = pre_processed_images['meta'][scale]
                 meta = {k: v.numpy()[0] for k, v in meta.items()}
 
-            #images = images.to(self.opt.device)
             images = images.as_in_context(self.ctx)
 
             nd.waitall()
@@ -128,6 +125,7 @@ class BaseDetector(object):
             dec_time += decode_time - forward_time
 
             dets = self.post_process(dets, meta, scale)
+
             nd.waitall()
             post_process_time = time.time()
             post_time += post_process_time - decode_time

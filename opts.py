@@ -6,6 +6,11 @@ import argparse
 import os
 import sys
 
+'''
+Same options as that from the official Pytorch implementation:
+https://github.com/xingyizhou/CenterNet/blob/master/src/lib/opts.py
+'''
+
 class opts(object):
   def __init__(self):
     self.parser = argparse.ArgumentParser()

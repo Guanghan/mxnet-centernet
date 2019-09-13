@@ -4,9 +4,6 @@ Date:   August, 2019
 
 Adapted from the official Pytorch implementation:
 https://github.com/xingyizhou/CenterNet
-
-Homage to [PyTorch to Mxnet cheetsheet]:
-https://gist.github.com/zhanghang1989/3d646f71d60c17048cf8ad582393ac6c
 """
 import mxnet as mx
 from mxnet import autograd, gluon, init, nd
@@ -50,7 +47,7 @@ def _topk(scores, K=40):
 def decode_centernet(heat, wh, reg=None, cat_spec_wh=False, K=100, flag_split=False):
     batch, cat, height, width = heat.shape
 
-    # perform nms on heatmaps
+    # perform nms on heatmaps, find the peaks
     heat = _nms(heat)
 
     scores, inds, clses, ys, xs = _topk(heat, K=K)

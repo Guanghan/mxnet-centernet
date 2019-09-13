@@ -8,28 +8,17 @@ sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/dataset")
 
 import mxnet as mx
 from mxnet import nd, gluon, init, autograd
-from gluoncv import data as gdata
 from gluoncv.data.batchify import Tuple, Stack, Pad
 
 from opts import opts
-
 from models.model import create_model, load_model, save_model
-from models.hourglass import stacked_hourglass
-from models.decoder import decode_centernet
 from models.losses import CtdetLoss
-
-from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
-from gluoncv.utils.metrics.coco_detection import COCODetectionMetric  # https://gluon-cv.mxnet.io/_modules/gluoncv/utils/metrics/coco_detection.html
-
 from coco_centernet import CenterCOCODataset
-
-from models.resnet import get_pose_net
 
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
     train_dataset = CenterCOCODataset(opt, split = 'train')   # custom dataset
     val_dataset = CenterCOCODataset(opt, split = 'val')   # custom dataset
-    # coco validation is slow, consider increase the validation interval
     opt.val_interval = 10
     return train_dataset, val_dataset
 

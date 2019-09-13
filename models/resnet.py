@@ -28,12 +28,7 @@ from mxnet.gluon import nn
 from mxnet.gluon.nn import BatchNorm
 from mxnet.gluon.contrib.cnn.conv_layers import DeformableConvolution
 
-#import sys, os
-#sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
-#from models.model import create_model, load_model, save_model
-
 BN_MOMENTUM = 0.1
-
 
 def download_pretrained_model():
     import gluoncv
@@ -331,16 +326,12 @@ class PoseResNet(HybridBlock):
                      in_channels = self.inplanes,
                      padding=1, dilation=1, use_bias=False) # http://34.201.8.176/versions/1.5.0/_modules/mxnet/gluon/contrib/cnn/conv_layers.html
             '''
+            # optional: do not use deformable convolution
             fc = nn.Conv2D(planes,
                      kernel_size=3, strides=1,
                      in_channels = self.inplanes,
                      padding=1, dilation=1, use_bias=False)
             '''
-
-            '''
-            fill_fc_weights(fc, single_layer=True)
-            '''
-
 
             print("Deconv {}, up, in_channels: {}, out_channels: {}".format(i, planes, planes))
 
@@ -352,10 +343,6 @@ class PoseResNet(HybridBlock):
                     padding=padding,
                     output_padding=output_padding,
                     use_bias=self.deconv_with_bias)
-            '''
-            fill_up_weights(up)
-            '''
-
             layers.append(fc)
             layers.append(nn.BatchNorm(momentum=BN_MOMENTUM))
             layers.append(nn.LeakyReLU(0))
@@ -403,7 +390,6 @@ def get_pose_net(num_layers, heads, head_conv=256, load_pretrained = False, ctx 
     model.collect_params().initialize(init= initializer, ctx = ctx)
 
     if num_layers == 18 and load_pretrained:
-        #model_load_path = '/Users/guanghan.ning/.mxnet/models/resnet18_v1-a0666292.params'
         model_load_path = '/root/.mxnet/models/resnet18_v1-a0666292.params'
         model = load_model(model, model_load_path, ctx = ctx)
     return model

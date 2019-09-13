@@ -172,13 +172,11 @@ class CtdetLoss(nn.Block):
     self.crit = gluon.loss.L2Loss() if opt.mse_loss else FocalLoss()
     self.crit_reg = RegL1Loss() if opt.reg_loss == 'l1' else \
               RegLoss() if opt.reg_loss == 'sl1' else None
-    #self.crit_wh = gluon.loss.L1Loss(reduction='sum') if opt.dense_wh else \   # why use sum instead of mean?
     self.crit_wh = gluon.loss.L1Loss() if opt.dense_wh else \
               NormRegL1Loss() if opt.norm_wh else \
               RegWeightedL1Loss() if opt.cat_spec_wh else self.crit_reg
     self.opt = opt
 
-  #def forward(self, outputs, batch):
   def forward(self, outputs, targets_heatmaps, targets_scale, targets_offset, targets_inds, targets_reg_mask):
     opt = self.opt
     hm_loss, wh_loss, off_loss = 0, 0, 0
@@ -215,12 +213,9 @@ class CtdetLoss(nn.Block):
         off_loss = off_loss + self.crit_reg(output['reg'], targets_reg_mask,
                              targets_inds, targets_offset) / opt.num_stacks
 
-    #print("hm loss: {}, wh loss: {}, off loss: {}".format(hm_loss, wh_loss, off_loss))
     # total loss
     loss = opt.hm_weight * hm_loss + opt.wh_weight * wh_loss + \
            opt.off_weight * off_loss
     loss_stats = {'loss': loss, 'hm_loss': hm_loss,
                   'wh_loss': wh_loss, 'off_loss': off_loss}
-    #return loss, loss_stats
-    #return hm_loss, wh_loss, off_loss
     return loss

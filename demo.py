@@ -2,20 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys, os
-def add_path(path):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-this_dir = os.path.dirname(__file__)
-
-# Add lib to PYTHONPATH
-lib_path = os.path.join(this_dir, 'lib')
-add_path(lib_path)
-
+import os
 import cv2
 from opts import opts
-#from detectors.detector_factory import detector_factory
 from detectors.center_detector import CenterDetector
 
 image_ext = ['jpg', 'jpeg', 'png', 'webp']
@@ -25,8 +14,6 @@ time_stats = ['tot', 'load', 'pre', 'net', 'dec', 'post', 'merge']
 def demo(opt):
   os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
   opt.debug = max(opt.debug, 1)
-  #Detector = detector_factory[opt.task]
-  #detector = Detector(opt)
   detector = CenterDetector(opt)
 
   if opt.demo == 'webcam' or \
@@ -55,6 +42,12 @@ def demo(opt):
       image_names = [opt.demo]
 
     for (image_name) in image_names:
+      '''
+      detector.run returns:
+           {'results': results, 'tot': tot_time, 'load': load_time,
+            'pre': pre_time, 'net': net_time, 'dec': dec_time,
+            'post': post_time, 'merge': merge_time}
+      '''
       ret = detector.run(image_name)
 
       time_str = ''
@@ -68,22 +61,8 @@ def demo(opt):
       output_path = "/export/guanghan/CenterNet-Gluon/output/" + img_name
       visualize_results(formated_ret, image_name, output_path)
 
-'''
-  detector.run returns:
-   {'results': results, 'tot': tot_time, 'load': load_time,
-    'pre': pre_time, 'net': net_time, 'dec': dec_time,
-    'post': post_time, 'merge': merge_time}
-'''
-
 
 def format_results(ret):
-    '''
-    det_candidates = ret["results"][3].tolist()  # choose class 3 dets
-    print(len(det_candidates))
-    det_candidates.extend(ret["results"][8].tolist())  # choose class 8 dets
-    print(len(det_candidates))
-    print("detection results: ", det_candidates)  # 1:car, 4:truck
-    '''
     det_candidates = ret["results"][1].tolist()  # choose class 0
     for i in range(2, 81):
         det_candidates.extend(ret["results"][i].tolist())  # add other classes

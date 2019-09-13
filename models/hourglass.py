@@ -106,7 +106,6 @@ class bilinear_upsample(nn.Block):
         self.scale_factor = scale_factor
 
     def forward(self, X):
-        #return nd.UpSampling(X, scale= self.scale_factor, num_filter = 2, sample_type='bilinear')
         height, width = X.shape[2:4]
         return nd.contrib.BilinearResize2D(X, height= height*self.scale_factor, width=width*self.scale_factor)
 
@@ -159,7 +158,6 @@ def make_merge_layer():
 
 def make_pool_layer():
     return nn.MaxPool2D(pool_size=2)
-    #return nn.Sequential()
 
 def make_unpool_layer():
     return bilinear_upsample(scale_factor=2)
@@ -231,15 +229,6 @@ class  keypoint_struct(nn.Block):
         low2 = self.low2(low1)
         low3 = self.low3(low2)
         up2  = self.up2(low3)
-        """
-        print("X shape:", X.shape)
-        print("up1 shape:", up1.shape)
-        print("max1 shape:", max1.shape)
-        print("low1 shape:", low1.shape)
-        print("low2 shape:", low2.shape)
-        print("low3 shape:", low3.shape)
-        print("up2 shape:", up2.shape)
-        """
         return self.merge(up1, up2)
 
 
@@ -435,19 +424,12 @@ class HourglassNet(stacked_hourglass):
             conv_dim= 256
         )
 
-
 """
 6. Constructor & interface for outside call
 """
 def get_hourglass_net(num_layers, heads, head_conv, ctx):
     model = HourglassNet(heads, 2)
-    #model = HourglassNet(heads, 1)
     return model
-
-
-
-
-
 
 
 # test utils
@@ -459,6 +441,7 @@ def peek_network(net, input_shape=(224, 224)):
         X = layer(X)
         print(layer.name, 'output shape: {}'.format(X.shape))
     return
+
 
 def test_all():
     funcs = [test_convolution_shape,
@@ -476,6 +459,3 @@ def test_all():
 
 if __name__ == "__main__":
     test_all()
-
-    #sequential = make_repeat_layers(1,3,3,1,convolution)
-    #print(sequential)
