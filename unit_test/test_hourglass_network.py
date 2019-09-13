@@ -12,7 +12,9 @@ import mxnet as mx
 print('Creating model...')
 opt = opts().init()
 print(opt.arch)
-model = create_model(opt.arch, opt.heads, opt.head_conv)
+ctx = [mx.gpu(int(i)) for i in opt.gpus_str.split(',') if i.strip()]
+ctx = ctx if ctx else [mx.cpu()]
+model = create_model(opt.arch, opt.heads, opt.head_conv, ctx)
 model.collect_params().initialize(init=init.Xavier())
 
 X   = nd.random.uniform(shape=(16, 3, 512, 512))

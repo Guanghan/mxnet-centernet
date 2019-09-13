@@ -18,6 +18,24 @@ def _sigmoid(x):
   y = nd.clip(data=x.sigmoid(), a_min=1e-4, a_max=1-1e-4)
   return y
 
+
+def _gather_feat(feat, ind, mask=None):
+    # K cannot be 1 for this implementation
+    K = ind.shape[1]
+    batch_size = ind.shape[0]
+    attri_dim = feat.shape[2]
+
+    flatten_ind = ind.flatten()
+    for i in range(batch_size):
+        if i == 0:
+            output = feat[i, ind[i]].expand_dims(2)
+        else:
+            output = nd.concat(output, feat[i, ind[i]].expand_dims(2), dim=2)
+
+    output = output.swapaxes(dim1 = 1, dim2 = 2)
+    return output
+
+'''
 def _gather_feat(feat, ind, mask=None):
     dim  = feat.shape[2]
     ind = ind.expand_dims(2).broadcast_to((ind.shape[0], ind.shape[1], dim))
@@ -25,7 +43,7 @@ def _gather_feat(feat, ind, mask=None):
     # In the future, may replace with pick() or take()
     feat_reshape = feat.swapaxes(dim1 = 0, dim2 = 1)
     ind_reshape = ind.swapaxes(dim1 = 0, dim2 = 2)
-    feat = nd.gather_nd(data=feat_reshape, indices=ind_reshape)  # something might be wrong here, probably should not use ind_stack
+    feat = nd.gather_nd(data=feat_reshape, indices=ind_reshape)  # something might be wrong here
     if len(feat.shape) == 4:
         feat = feat.mean(axis = 1)
 
@@ -34,6 +52,8 @@ def _gather_feat(feat, ind, mask=None):
         feat = feat[mask]
         feat = feat.reshape((-1, dim))
     return feat
+'''
+
 
 def _tranpose_and_gather_feat(feat, ind):
     feat = nd.transpose(feat, axes=(0, 2, 3, 1))

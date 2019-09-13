@@ -48,9 +48,11 @@ class CenterDetector(BaseDetector):
                                  meta['out_width'],
                                  self.opt.num_classes
                                 )
+
         for i in range(1, self.num_classes + 1):
             dets[0][i] = np.array(dets[0][i], dtype=np.float32).reshape(-1, 5)
-            dets[0][i][:, :4] /= 4
+            dets[0][i][:, :4] /= scale
+            #dets[0][i][:, :4] /= 4
         return dets[0]
 
 

@@ -90,7 +90,7 @@ def post_process_centernet(dets, c, s, h, w, num_classes):
   ret = []
   for i in range(dets.shape[0]):
     top_preds = {}
-    dets[i, :, 0:2] = transform_preds(
+    dets[i, :, :2] = transform_preds(
           dets[i, :, 0:2], c[i], s[i], (w, h))
     dets[i, :, 2:4] = transform_preds(
           dets[i, :, 2:4], c[i], s[i], (w, h))

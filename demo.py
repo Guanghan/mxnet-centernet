@@ -63,7 +63,6 @@ def demo(opt):
       print(time_str)
 
       formated_ret = format_results(ret)
-      print("formated_ret: ", formated_ret)
 
       img_name = image_name.split('/')[-1]
       output_path = "/export/guanghan/CenterNet-Gluon/output/" + img_name
@@ -89,7 +88,7 @@ def format_results(ret):
     for i in range(2, 81):
         det_candidates.extend(ret["results"][i].tolist())  # add other classes
 
-    thresh = 0.5
+    thresh = 0.3
     formated_ret = []
     for det_candidate in det_candidates:
         x1, y1, x2, y2, conf = det_candidate
@@ -102,6 +101,17 @@ def format_results(ret):
 
 
 def visualize_results(formated_ret, img_path, save_path):
+    # Visualize Centers
+    img = cv2.imread(img_path)
+    for bbox in formated_ret:
+        x1, y1, w, h = bbox
+        center_x = int(x1 + w * 0.5)
+        center_y = int(y1 + h * 0.5)
+        cv2.circle(img, (center_x, center_y), 5, (255, 0, 0), 3)
+    cv2.imwrite(save_path, img)
+
+'''
+def visualize_results(formated_ret, img_path, save_path):
     img = cv2.imread(img_path)
     #resized = cv2.resize(img, (512, 512))
     for bbox in formated_ret:
@@ -111,6 +121,15 @@ def visualize_results(formated_ret, img_path, save_path):
     cv2.imwrite(save_path, img)
     #cv2.imwrite(save_path, resized)
 
+def visualize_results(formated_ret, img_path, save_path):
+    img = cv2.imread(img_path)
+    resized = cv2.resize(img, (256, 256))
+    for bbox in formated_ret:
+        x1, y1, w, h = bbox
+        cv2.rectangle(resized, (x1, y1), (x1+w, y1+h), (255, 255, 255), 1)
+    cv2.imwrite(save_path, resized)
+
+'''
 
 if __name__ == '__main__':
   opt = opts().init()

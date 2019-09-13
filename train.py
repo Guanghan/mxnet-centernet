@@ -161,7 +161,7 @@ if __name__ == "__main__":
     #if opt.arch == "res_18":
     #    model = get_pose_net(18, opt.heads, opt.head_conv, load_pretrained =True, ctx = ctx)
     #else:
-    model = create_model(opt.arch, opt.heads, opt.head_conv)
+    model = create_model(opt.arch, opt.heads, opt.head_conv, ctx = ctx)
 
     opt.cur_epoch = 0
     if opt.flag_finetune:

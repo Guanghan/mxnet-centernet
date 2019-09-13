@@ -28,7 +28,9 @@ from mxnet.gluon import nn
 from mxnet.gluon.nn import BatchNorm
 from mxnet.gluon.contrib.cnn.conv_layers import DeformableConvolution
 
-from models.model import create_model, load_model, save_model
+#import sys, os
+#sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
+#from models.model import create_model, load_model, save_model
 
 BN_MOMENTUM = 0.1
 

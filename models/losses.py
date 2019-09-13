@@ -215,6 +215,7 @@ class CtdetLoss(nn.Block):
         off_loss = off_loss + self.crit_reg(output['reg'], targets_reg_mask,
                              targets_inds, targets_offset) / opt.num_stacks
 
+    #print("hm loss: {}, wh loss: {}, off loss: {}".format(hm_loss, wh_loss, off_loss))
     # total loss
     loss = opt.hm_weight * hm_loss + opt.wh_weight * wh_loss + \
            opt.off_weight * off_loss
