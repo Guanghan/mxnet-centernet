@@ -33,7 +33,7 @@ def get_dataloader(train_dataset, data_shape, batch_size, num_workers, ctx):
     return train_loader
 
 
-def train(model, train_loader, val_dataset, eval_metric, ctx, opt):
+def train(model, train_loader, val_dataset, ctx, opt):
     """Training pipeline"""
     model.collect_params().reset_ctx(ctx)
 
@@ -145,4 +145,4 @@ if __name__ == "__main__":
     train_loader = get_dataloader(train_dataset, data_shape, batch_size, num_workers, ctx)
 
     """ 3. Training """
-    train(model, train_loader, val_dataset, eval_metric, ctx, opt)
+    train(model, train_loader, val_dataset, ctx, opt)
