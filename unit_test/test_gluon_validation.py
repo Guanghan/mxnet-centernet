@@ -15,7 +15,6 @@ from gluoncv.data.batchify import Tuple, Stack, Pad
 from opts import opts
 
 from models.model import create_model, load_model, save_model
-from models.large_hourglass import stacked_hourglass
 from models.decoder import decode_centernet
 from models.losses import CtdetLoss
 
@@ -24,14 +23,12 @@ from gluoncv.utils.metrics.coco_detection import COCODetectionMetric  # https://
 
 from coco_centernet import CenterCOCODataset
 
+
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
-    val_dataset = gdata.COCODetection(root= coco_path, splits='instances_val2017', skip_empty=False)  # gluon official
+    val_dataset = CenterCOCODataset(opt, split = 'val')   # custom dataset
     eval_metric = COCODetectionMetric(val_dataset,
                                      save_prefix = '_eval',
-                                     #use_time = False,
-                                     #cleanup= True,
-                                     #score_thresh = 0,
                                      data_shape=(opt.input_res, opt.input_res))
     return val_dataset, eval_metric
 
@@ -40,10 +37,10 @@ def get_dataloader(val_dataset, data_shape, batch_size, num_workers, ctx):
     """Get dataloader."""
     width, height = data_shape, data_shape
     val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
+    #val_batchify_fn = Tuple(Stack(), Stack())
 
-    val_loader = gluon.data.DataLoader(
-        val_dataset.transform(SSDDefaultValTransform(width, height)),
-        batch_size, False, batchify_fn=val_batchify_fn, last_batch='keep', num_workers=num_workers)
+    val_loader = gluon.data.DataLoader( val_dataset,
+        batch_size, False, batchify_fn=val_batchify_fn, last_batch='rollover', num_workers=num_workers)
     return val_loader
 
 
@@ -60,18 +57,21 @@ def validate(model, val_loader, ctx, eval_metric):
         gt_ids = []
         gt_difficults = []
         for x, y in zip(data, label):
+            #print("x.shape", x.shape)
+            #print("x element value: ", x[0, 0, 128, 128])
+
             # get prediction results
             pred = model(x)
-            #heatmaps, scale, offset = pred[0]["hm"], pred[0]["wh"], pred[0]["reg"]  # 1st stack hourglass result
-            heatmaps, scale, offset = pred[1]["hm"], pred[1]["wh"], pred[1]["reg"]  # 2nd stack hourglass result
+            heatmaps, scale, offset = pred[-1]["hm"], pred[-1]["wh"], pred[-1]["reg"]  # 2nd stack hourglass result
 
             #DEBUGING decode_centernet:
             bboxes, scores, ids = decode_centernet(heat=heatmaps, wh=scale, reg=offset, flag_split=True)
 
-            #print("bboxes: {}, scores {}, ids {} \n".format(bboxes.shape, scores.shape, ids.shape))
-            # shape: (6, 100, 4), (6, 100, 1), (6, 100, 1)
-            # shape: (batch, K, attributes)
-            print("Top-5, bbox: {}, scores: {}, id {} \n".format(bboxes[0, 0:5, :], scores[0, 0:5, :], ids[0, 0:5, :]))
+            num_gt_bboxes = y.shape[1]
+            bboxes = bboxes[:, 0:num_gt_bboxes, :]
+            scores = scores[:, 0:num_gt_bboxes, :]
+            ids = ids[:, 0:num_gt_bboxes, :]
+            print("Top-k, bbox: {}, scores: {}, id {}, gt_bbox: {}, gt_id: {}".format(bboxes[0, :, :], scores[0, :, :], ids[0, :, :], y[0, :, 0:4], y[0, :, 4]))
 
             det_ids.append(ids)
             det_scores.append(scores)
@@ -91,7 +91,7 @@ def test_validation(model, val_loader, eval_metric, ctx, opt):
     # validation loop
     map_name, mean_ap = validate(model, val_loader, ctx, eval_metric)
     val_msg = '\n'.join(['{}={}'.format(k, v) for k, v in zip(map_name, mean_ap)])
-    print('[Epoch {}] Validation: \n{}'.format(epoch, val_msg))
+    print('Validation: \n{}'.format(val_msg))
 
 
 if __name__ == "__main__":
@@ -103,9 +103,8 @@ if __name__ == "__main__":
     """ 1. network """
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
-    model = create_model(opt.arch, opt.heads, opt.head_conv)
-    pretrained_path = "/root/CenterNet-Gluon/CenterNet_hourglass_0030.params"
-    model = load_model(model, pretrained_path, ctx = ctx)
+    model = create_model(opt.arch, opt.heads, opt.head_conv, ctx = ctx)
+    model = load_model(model, opt.load_model_path, ctx = ctx)
 
     """ 2. Dataset """
     val_dataset, eval_metric = get_coco(opt, "./data/coco")

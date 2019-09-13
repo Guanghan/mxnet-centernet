@@ -28,36 +28,23 @@ from models.resnet import get_pose_net
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
     train_dataset = CenterCOCODataset(opt, split = 'train')   # custom dataset
-    #train_dataset = CenterCOCODataset(opt, split = 'val')   # custom dataset
-    val_dataset = gdata.COCODetection(root= coco_path, splits='instances_val2017', skip_empty=False)  # gluon official
-    eval_metric = COCODetectionMetric(val_dataset,
-                                     save_prefix = '_eval',
-                                     #use_time = False,
-                                     #cleanup= True,
-                                     #score_thresh = 0,
-                                     data_shape=(opt.input_res, opt.input_res))
+    val_dataset = CenterCOCODataset(opt, split = 'val')   # custom dataset
     # coco validation is slow, consider increase the validation interval
     opt.val_interval = 10
-    return train_dataset, val_dataset, eval_metric
+    return train_dataset, val_dataset
 
 
-def get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx):
+def get_dataloader(train_dataset, data_shape, batch_size, num_workers, ctx):
     """Get dataloader."""
     width, height = data_shape, data_shape
 
     batchify_fn = Tuple(Stack(), Stack(), Stack(), Stack(), Stack(), Stack())  # stack image, heatmaps, scale, offset, inds, masks
     val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
-
-    train_loader = gluon.data.DataLoader( train_dataset,
-        batch_size, True, batchify_fn=batchify_fn, last_batch='rollover', num_workers=num_workers)
-
-    val_loader = gluon.data.DataLoader(
-        val_dataset.transform(SSDDefaultValTransform(width, height)),
-        batch_size, False, batchify_fn=val_batchify_fn, last_batch='keep', num_workers=num_workers)
-    return train_loader, val_loader
+    train_loader = gluon.data.DataLoader(train_dataset, batch_size, True, batchify_fn=batchify_fn, last_batch='rollover', num_workers=num_workers)
+    return train_loader
 
 
-def train(model, train_loader, val_loader, eval_metric, ctx, opt):
+def train(model, train_loader, val_dataset, eval_metric, ctx, opt):
     """Training pipeline"""
     model.collect_params().reset_ctx(ctx)
 
@@ -110,43 +97,37 @@ def train(model, train_loader, val_loader, eval_metric, ctx, opt):
             save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
 
         # validation loop
-        if epoch % opt.val_interval != 0: continue
-        map_name, mean_ap = validate(model, val_loader, ctx, eval_metric)
-        val_msg = '\n'.join(['{}={}'.format(k, v) for k, v in zip(map_name, mean_ap)])
-        print('[Epoch {}] Validation: \n{}'.format(epoch, val_msg))
+        if epoch % opt.val_interval == 0:
+            validate(model, val_dataset, opt, ctx[-1])
 
 
-def validate(model, val_loader, ctx, eval_metric):
+def validate(model, dataset, opt, ctx):
     """Test on validation dataset."""
-    eval_metric.reset()
-    for batch in val_loader:
-        data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-        label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
-        det_bboxes = []
-        det_ids = []
-        det_scores = []
-        gt_bboxes = []
-        gt_ids = []
-        gt_difficults = []
-        for x, y in zip(data, label):
-            # get prediction results
-            pred = model(x)
-            heatmaps, scale, offset = pred[-1]["hm"], pred[-1]["wh"], pred[-1]["reg"]  # last stack of hourglass result
+    detector = CenterDetector(opt)
+    detector.model = model
 
-            bboxes, scores, ids = decode_centernet(heat=heatmaps, wh=scale, reg=offset, flag_split=True)
+    results = {}
+    num_iters = len(dataset)
+    bar = Bar('{}'.format(opt.exp_id), max=num_iters)
+    time_stats = ['tot', 'load', 'pre', 'net', 'dec', 'post', 'merge']
+    avg_time_stats = {t: AverageMeter() for t in time_stats}
+    print("Reporting every 1000 images...")
+    for ind in range(num_iters):
+        img_id = dataset.images[ind]
+        img_info = dataset.coco.loadImgs(ids=[img_id])[0]
+        img_path = os.path.join(dataset.img_dir, img_info['file_name'])
 
-            det_ids.append(ids)
-            det_scores.append(scores)
-            # clip to image size
-            det_bboxes.append(bboxes.clip(0, batch[0].shape[2]))
-            # split ground truths
-            gt_bboxes.append(y.slice_axis(axis=-1, begin=0, end=4))
-            gt_ids.append(y.slice_axis(axis=-1, begin=4, end=5))
-            gt_difficults.append(y.slice_axis(axis=-1, begin=5, end=6) if y.shape[-1] > 5 else None)
-
-        # update metric
-        eval_metric.update(det_bboxes, det_ids, det_scores, gt_bboxes, gt_ids, gt_difficults)
-    return eval_metric.get()
+        ret = detector.run(img_path)
+        results[img_id] = ret['results']
+        Bar.suffix = '[{0}/{1}]|Tot: {total:} |ETA: {eta:} '.format(
+                       ind, num_iters, total=bar.elapsed_td, eta=bar.eta_td)
+        for t in avg_time_stats:
+            avg_time_stats[t].update(ret[t])
+            Bar.suffix = Bar.suffix + '|{} {:.3f} '.format(t, avg_time_stats[t].avg)
+        if ind % 1000 == 0:
+            bar.next()
+    bar.finish()
+    val_dataset.run_eval(results = results, save_dir = './output/')
 
 
 if __name__ == "__main__":
@@ -158,9 +139,6 @@ if __name__ == "__main__":
     """ 1. network """
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
-    #if opt.arch == "res_18":
-    #    model = get_pose_net(18, opt.heads, opt.head_conv, load_pretrained =True, ctx = ctx)
-    #else:
     model = create_model(opt.arch, opt.heads, opt.head_conv, ctx = ctx)
 
     opt.cur_epoch = 0
@@ -171,11 +149,11 @@ if __name__ == "__main__":
         model.collect_params().initialize(init=init.Xavier(), ctx = ctx)
 
     """ 2. Dataset """
-    train_dataset, val_dataset, eval_metric = get_coco(opt, "./data/coco")
+    train_dataset, val_dataset = get_coco(opt, "./data/coco")
     data_shape = opt.input_res
     batch_size = opt.batch_size
     num_workers = opt.num_workers
-    train_loader, val_loader = get_dataloader(train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx)
+    train_loader = get_dataloader(train_dataset, data_shape, batch_size, num_workers, ctx)
 
     """ 3. Training """
-    train(model, train_loader, val_loader, eval_metric, ctx, opt)
+    train(model, train_loader, val_dataset, eval_metric, ctx, opt)

@@ -25,7 +25,7 @@ class BaseDetector(object):
 
         print("Creating model...")
         self.model = create_model(options.arch, options.heads, options.head_conv, ctx = self.ctx)
-        self.model = load_model(self.model, options.load_model_path, ctx = self.ctx)  # need to be implemented
+        self.model = load_model(self.model, options.load_model_path, ctx = self.ctx)
 
         self.mean = np.array(options.mean, dtype=np.float32).reshape(1, 1, 3)
         self.std = np.array(options.std, dtype=np.float32).reshape(1, 1, 3)
@@ -109,7 +109,6 @@ class BaseDetector(object):
             if not pre_processed:
                 images, meta = self.pre_process(image, scale, meta)
             else:
-                # import pdb; pdb.set_trace()
                 images = pre_processed_images['images'][scale][0]
                 meta = pre_processed_images['meta'][scale]
                 meta = {k: v.numpy()[0] for k, v in meta.items()}
@@ -128,9 +127,6 @@ class BaseDetector(object):
             decode_time = time.time()
             dec_time += decode_time - forward_time
 
-            #if self.opt.debug >= 2:
-            #    self.debug(debugger, images, dets, output, scale)
-
             dets = self.post_process(dets, meta, scale)
             nd.waitall()
             post_process_time = time.time()
@@ -143,9 +139,6 @@ class BaseDetector(object):
         end_time = time.time()
         merge_time += end_time - post_process_time
         tot_time += end_time - start_time
-
-        #if self.opt.debug >= 1:
-            #self.show_results(debugger, image, results)
 
         return {'results': results, 'tot': tot_time, 'load': load_time,
                 'pre': pre_time, 'net': net_time, 'dec': dec_time,

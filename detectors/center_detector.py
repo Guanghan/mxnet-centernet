@@ -52,7 +52,6 @@ class CenterDetector(BaseDetector):
         for i in range(1, self.num_classes + 1):
             dets[0][i] = np.array(dets[0][i], dtype=np.float32).reshape(-1, 5)
             dets[0][i][:, :4] /= scale
-            #dets[0][i][:, :4] /= 4
         return dets[0]
 
 
@@ -72,30 +71,3 @@ class CenterDetector(BaseDetector):
                 keep_inds = (results[i][:, 4] >= thresh)
                 results[i] = results[i][keep_inds]
         return results
-
-
-    ''' Add debugger '''
-    '''
-    def debug(self, debugger, images, dets, output, scale=1):
-        detection = dets.detach().cpu().numpy().copy()
-        detection[:, :, :4] *= self.opt.down_ratio
-        for i in range(1):
-            img = images[i].detach().cpu().numpy().transpose(1, 2, 0)
-            img = ((img * self.std + self.mean) * 255).astype(np.uint8)
-            pred = debugger.gen_colormap(output['hm'][i].detach().cpu().numpy())
-            debugger.add_blend_img(img, pred, 'pred_hm_{:.1f}'.format(scale))
-            debugger.add_img(img, img_id='out_pred_{:.1f}'.format(scale))
-        for k in range(len(dets[i])):
-            if detection[i, k, 4] > self.opt.center_thresh:
-                debugger.add_coco_bbox(detection[i, k, :4], detection[i, k, -1],
-                                     detection[i, k, 4],
-                                     img_id='out_pred_{:.1f}'.format(scale))
-
-    def show_results(self, debugger, image, results):
-        debugger.add_img(image, img_id='ctdet')
-        for j in range(1, self.num_classes + 1):
-            for bbox in results[j]:
-                if bbox[4] > self.opt.vis_thresh:
-                    debugger.add_coco_bbox(bbox[:4], j - 1, bbox[4], img_id='ctdet')
-        debugger.show_all_imgs(pause=self.pause)
-    '''

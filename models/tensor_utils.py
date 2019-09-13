@@ -35,26 +35,6 @@ def _gather_feat(feat, ind, mask=None):
     output = output.swapaxes(dim1 = 1, dim2 = 2)
     return output
 
-'''
-def _gather_feat(feat, ind, mask=None):
-    dim  = feat.shape[2]
-    ind = ind.expand_dims(2).broadcast_to((ind.shape[0], ind.shape[1], dim))
-
-    # In the future, may replace with pick() or take()
-    feat_reshape = feat.swapaxes(dim1 = 0, dim2 = 1)
-    ind_reshape = ind.swapaxes(dim1 = 0, dim2 = 2)
-    feat = nd.gather_nd(data=feat_reshape, indices=ind_reshape)  # something might be wrong here
-    if len(feat.shape) == 4:
-        feat = feat.mean(axis = 1)
-
-    if mask is not None:
-        mask = nd.expand_dims(mask, 2).broadcast_to(feat.shape)
-        feat = feat[mask]
-        feat = feat.reshape((-1, dim))
-    return feat
-'''
-
-
 def _tranpose_and_gather_feat(feat, ind):
     feat = nd.transpose(feat, axes=(0, 2, 3, 1))
     feat = nd.reshape(feat, shape=(feat.shape[0], -1, feat.shape[3]))
