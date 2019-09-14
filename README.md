@@ -33,6 +33,28 @@ CenterNet is simpler in concept than previous single-shot object detectors:
 - Add other tasks: multi-person pose estimation, 3D object detection
 - Add utility for other datasets
 
+### Example commands
+
+- Demo 2D object detection on an image folder:
+
+  ```Shell
+  python demo.py --arch res_18 --load_model CenterNet_res_18_0136.params --gpus 0 --demo images/
+  ```
+
+- Train CenterNet with hourglass network for 2D object detection:
+
+  ```Shell
+  python train.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 5e-4
+  ```
+
+- Finetune CenterNet with resnet18-dcn network for 2D object detection:
+
+  ```Shell
+  python train.py --gpu 0,1,2,3 --batch_size 100 --arch res_18 --num_workers 16 --lr 1e-4 \
+  --flag_finetune --pretrained_path CenterNet_res_18_0060.params
+  ```
+
+
 ## Official Implementation by Xinyi Zhou
 - PyTorch: https://github.com/xingyizhou/CenterNet
 
