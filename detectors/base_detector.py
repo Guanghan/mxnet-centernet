@@ -25,7 +25,8 @@ class BaseDetector(object):
 
         print("Creating model...")
         self.model = create_model(options.arch, options.heads, options.head_conv, ctx = self.ctx)
-        self.model = load_model(self.model, options.load_model_path, ctx = self.ctx)
+        if options.load_model_path != '':
+            self.model = load_model(self.model, options.load_model_path, ctx = self.ctx)
 
         self.mean = np.array(options.mean, dtype=np.float32).reshape(1, 1, 3)
         self.std = np.array(options.std, dtype=np.float32).reshape(1, 1, 3)
