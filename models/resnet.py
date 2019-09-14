@@ -262,20 +262,8 @@ class PoseResNet(HybridBlock):
                 fc.add(nn.Conv2D(head_conv, kernel_size=3, in_channels = 64, padding=1, use_bias=True),
                        nn.LeakyReLU(0),
                        nn.Conv2D(classes, kernel_size=1, in_channels = head_conv, strides=1, padding=0, use_bias=True))
-                '''
-                if 'hm' in head:
-                    fc[-1].bias.set_data(-2.19)
-                else:
-                    fill_fc_weights(fc)
-                '''
             else:
                 fc = nn.Conv2D(classes,kernel_size=1, in_channels=64, strides=1, padding=0, use_bias=True)
-                '''
-                if 'hm' in head:
-                    fc.bias.data.fill_(-2.19)
-                else:
-                    fill_fc_weights(fc, single_layer=True)
-                '''
             self.__setattr__(head, fc)
 
 
@@ -357,9 +345,7 @@ class PoseResNet(HybridBlock):
 
     def hybrid_forward(self, F, x):
         x = self.features(x)
-        #print(x.shape)
         x = self.deconv_layers(x)
-        #print(x.shape)
         ret = {}
         for head in self.heads:
             ret[head] = self.__getattribute__(head)(x)
