@@ -13,8 +13,12 @@ from gluoncv.data.batchify import Tuple, Stack, Pad
 from opts import opts
 from models.model import create_model, load_model, save_model
 from models.losses import CtdetLoss
+
 from coco_centernet import CenterCOCODataset
 from detectors.center_detector import CenterDetector
+
+from progress.bar import Bar
+from utils.misc import AverageMeter
 
 def get_coco(opt, coco_path="/export/guanghan/coco"):
     """Get coco dataset."""
