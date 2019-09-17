@@ -55,7 +55,7 @@ CenterNet is simpler in concept than previous single-shot object detectors:
   ```
 
 
-## Official Implementation by Xinyi Zhou
+## Official Implementation by Xingyi Zhou
 - PyTorch: https://github.com/xingyizhou/CenterNet
 
 ## Other Ports
