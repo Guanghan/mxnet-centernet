@@ -154,7 +154,9 @@ class CenterKITTIDataset(KITTI):
               'image_path': img_path, 'img_id': img_id}
       ret['meta'] = meta
 
-    return ret
+    #return ret
+    return inp, hm, dep, dim, ind, rotbin, rotres, reg_mask, rot_mask, meta
+
 
   def _alpha_to_8(self, alpha):
     # return [alpha, 0, 0, 0, 0, 0, 0, 0]

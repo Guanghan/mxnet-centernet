@@ -89,6 +89,44 @@ def decode_centernet(heat, wh, reg=None, cat_spec_wh=False, K=100, flag_split=Fa
         return detections
 
 
+def decode_centernet_3dod(heat, rot, depth, dim, wh=None, reg=None, K=40):
+    batch, cat, height, width = heat.shape
+    # perform nms on heatmaps
+    heat = _nms(heat)
+
+    scores, inds, clses, ys, xs = _topk(heat, K=K)
+    if reg is not None:
+        reg = _tranpose_and_gather_feat(reg, inds)
+        reg = nd.reshape(reg, (batch, K, 2))
+        xs = nd.reshape(xs, (batch, K, 1)) + reg[:, :, 0:1]
+        ys = nd.reshape(ys, (batch, K, 1)) + reg[:, :, 1:2]
+    else:
+        xs = nd.reshape(xs, (batch, K, 1)) + 0.5
+        ys = nd.reshape(ys, (batch, K, 1)) + 0.5
+
+    rot = _tranpose_and_gather_feat(rot, inds)
+    rot = nd.reshape(rot, (batch, K, 8))
+    depth = _tranpose_and_gather_feat(depth, inds)
+    depth = nd.reshape(depth, (batch, K, 1))
+    dim = _tranpose_and_gather_feat(dim, inds)
+    dim = nd.reshape(dim, (batch, K, 3))
+
+    clses  = nd.reshape(clses, (batch, K, 1)).astype('float32')
+    scores = nd.reshape(scores, (batch, K, 1))
+    xs = nd.reshape(xs, (batch, K, 1))
+    ys = nd.reshape(ys, (batch, K, 1))
+
+    if wh is not None:
+        wh = _tranpose_and_gather_feat(wh, inds)
+        wh = nd.reshape(wh, (batch, K, 2))
+        detections = nd.concat(xs, ys, scores, rot, depth, dim, wh, clses, dim=2)
+    else:
+        detections = nd.concat(xs, ys, scores, rot, depth, dim, clses, dim=2)
+
+    return detections
+
+
+
 if __name__ == "__main__":
     scores = nd.random.uniform(shape=(2,3,128,128))
     batch, cat, height, width = scores.shape
