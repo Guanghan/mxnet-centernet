@@ -166,6 +166,9 @@ class L1Loss(nn.Block):
     loss = nd.abs(pred*mask - target*mask).mean()
     return loss
 
+'''
+Loss for 2DOD
+'''
 class CtdetLoss(nn.Block):
   def __init__(self, opt):
     super(CtdetLoss, self).__init__()
@@ -219,3 +222,69 @@ class CtdetLoss(nn.Block):
     loss_stats = {'loss': loss, 'hm_loss': hm_loss,
                   'wh_loss': wh_loss, 'off_loss': off_loss}
     return loss
+
+
+'''
+Loss for 3DOD
+'''
+class BinRotLoss(nn.Block):
+  def __init__(self):
+    super(BinRotLoss, self).__init__()
+
+  def forward(self, output, mask, ind, rotbin, rotres):
+    pred = _tranpose_and_gather_feat(output, ind)
+    loss = compute_rot_loss(pred, rotbin, rotres, mask)
+    return loss
+
+def compute_res_loss(output, target):
+    output = output.swapaxes(dim1 = 0, dim2 = 1)
+    diff = nd.abs(output - target)
+    return mx.symbol.smooth_l1(diff).mean()
+
+def compute_bin_loss(output, target, mask):
+    mask = mask.broadcast_like(output)
+    output = output * mask.astype('float32')
+    return nd.softmax_cross_entropy(output, target)
+
+def compute_rot_loss(output, target_bin, target_res, mask):
+    # output: (B, 128, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
+    #                 bin2_cls[0], bin2_cls[1], bin2_sin, bin2_cos]
+    # target_bin: (B, 128, 2) [bin1_cls, bin2_cls]
+    # target_res: (B, 128, 2) [bin1_res, bin2_res]
+    # mask: (B, 128, 1)
+    output = nd.reshape(output, (-1, 8))
+    target_bin = nd.reshape(target_bin, (-1, 2))
+    target_res = nd.reshape(target_res, (-1, 2))
+    mask = nd.reshape(mask, (-1, 1))
+    loss_bin1 = compute_bin_loss(output[:, 0:2], target_bin[:, 0], mask)
+    loss_bin2 = compute_bin_loss(output[:, 4:6], target_bin[:, 1], mask)
+    loss_res = nd.zeros_like(loss_bin1)
+
+    idx1 = get_nonzero_indices(target_bin[:, 0])
+    if idx1 != []:
+        valid_output1 = nd.pick(output, idx1, axis=0)
+        valid_target_res1 = nd.pick(target_res, idx1, axis=0)
+
+        loss_sin1 = compute_res_loss(valid_output1[:, 2], nd.sin(valid_target_res1[:, 0]))
+        loss_cos1 = compute_res_loss(valid_output1[:, 3], nd.cos(valid_target_res1[:, 0]))
+        loss_res += loss_sin1 + loss_cos1
+
+    idx2 = get_nonzero_indices(target_bin[:, 1])
+    if idx2 != []:
+        valid_output2 = nd.piack(output, idx2, axis=0)
+        valid_target_res2 = nd.pick(target_res, idx2, axis=0)
+
+        loss_sin2 = compute_res_loss(valid_output2[:, 6], nd.sin(valid_target_res2[:, 1]))
+        loss_cos2 = compute_res_loss(valid_output2[:, 7], nd.cos(valid_target_res2[:, 1]))
+        loss_res += loss_sin2 + loss_cos2
+
+    return loss_bin1 + loss_bin2 + loss_res
+
+def get_nonzero_indices(array):
+    '''
+    input: mxnet.NDArray
+    output: mxnet.NDArray
+    '''
+    sparse = array.tostype('csr')
+    indices = sparse.indices
+    return indices

@@ -54,6 +54,40 @@ def test_gather_feat():
     return
 
 
+def get_nonzero(array):
+    '''
+    input: mxnet.NDArray
+    output: mxnet.NDArray
+    '''
+    sparse = array.tostype('csr')
+    indices = sparse.indices
+    return indices
+
+def test_get_nonzero():
+    feat = nd.zeros(shape = (4, 2))
+    '''
+    feat[0, 0] = 1
+    feat[1, 1] = 1
+    feat[2, 1] = 1
+    feat[3, 0] = 1
+    feat = nd.array([[0.6, 0.0, 0.0, 0.0],
+                     [0.0, 0.4, 0.0, 0.0],
+                     [0.0, 0.0, 1.2, 0.0],
+                     [0.0, 0.0, 0.0,-0.4]])
+    feat = nd.array([[[1,1,1,0,1],[1,0,0,0,1]],
+                     [[1,1,1,0,1],[1,0,0,0,1]]])
+    '''
+    print(feat)
+
+    feat_sparse = feat.tostype('csr')
+    print(feat_sparse)
+
+    indices = feat_sparse.indices
+    print(indices)
+    return
+
+
 
 if __name__ == "__main__":
-    test_gather_feat()
+    #test_gather_feat()
+    test_get_nonzero()
