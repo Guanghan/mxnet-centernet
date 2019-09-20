@@ -5,7 +5,6 @@ from __future__ import print_function
 import mxnet.gluon.data as data
 import pycocotools.coco as coco
 import numpy as np
-import torch
 import json
 import cv2
 import os

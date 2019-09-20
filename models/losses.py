@@ -228,13 +228,13 @@ class CtdetLoss(nn.Block):
 Loss for 3DOD
 '''
 class BinRotLoss(nn.Block):
-  def __init__(self):
-    super(BinRotLoss, self).__init__()
+    def __init__(self):
+        super(BinRotLoss, self).__init__()
 
-  def forward(self, output, mask, ind, rotbin, rotres):
-    pred = _tranpose_and_gather_feat(output, ind)
-    loss = compute_rot_loss(pred, rotbin, rotres, mask)
-    return loss
+    def forward(self, output, mask, ind, rotbin, rotres):
+        pred = _tranpose_and_gather_feat(output, ind)
+        loss = compute_rot_loss(pred, rotbin, rotres, mask)
+        return loss
 
 def compute_res_loss(output, target):
     output = output.swapaxes(dim1 = 0, dim2 = 1)
@@ -246,6 +246,15 @@ def compute_bin_loss(output, target, mask):
     output = output * mask.astype('float32')
     return nd.softmax_cross_entropy(output, target)
 
+def get_nonzero_indices(array):
+    '''
+    input: mxnet.NDArray
+    output: mxnet.NDArray
+    '''
+    sparse = array.tostype('csr')
+    indices = sparse.indices
+    return indices
+    
 def compute_rot_loss(output, target_bin, target_res, mask):
     # output: (B, 128, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
     #                 bin2_cls[0], bin2_cls[1], bin2_sin, bin2_cos]
@@ -279,12 +288,3 @@ def compute_rot_loss(output, target_bin, target_res, mask):
         loss_res += loss_sin2 + loss_cos2
 
     return loss_bin1 + loss_bin2 + loss_res
-
-def get_nonzero_indices(array):
-    '''
-    input: mxnet.NDArray
-    output: mxnet.NDArray
-    '''
-    sparse = array.tostype('csr')
-    indices = sparse.indices
-    return indices

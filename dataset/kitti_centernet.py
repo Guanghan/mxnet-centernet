@@ -1,10 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import sys
+sys.path.insert(0, "/Users/guanghan.ning/Desktop/dev/CenterNet-Gluon/")
+sys.path.insert(0, "/export/guanghan/CenterNet-Gluon/")
 
 import pycocotools.coco as coco
 import numpy as np
-import torch
 import json
 import cv2
 import os
@@ -155,7 +154,7 @@ class CenterKITTIDataset(KITTI):
       ret['meta'] = meta
 
     #return ret
-    return inp, hm, dep, dim, ind, rotbin, rotres, reg_mask, rot_mask, meta
+    return inp, hm, wh, reg, dep, dim, rotbin, rotres, ind, reg_mask, rot_mask
 
 
   def _alpha_to_8(self, alpha):
