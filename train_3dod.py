@@ -86,15 +86,15 @@ def train(model, train_loader, val_dataset, ctx, opt):
                 cumulative_train_loss += loss.sum().as_in_context(ctx[0])
                 training_samples += opt.batch_size // num_gpus
 
-            if i % 200 == 1:
+            if i % 20 == 1:
                 print("\t Iter: {}, loss: {}".format(i, losses[0].as_in_context(ctx[0]).asscalar()))
 
         train_hours = (time.time() - start) / 3600.0 # 1 epoch training time in hours
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
-        print("Epoch {}, time: {:.1f} hours, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
+        print("Epoch {}, time: {:.2f} hours, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
 
         # Save parameters
-        prefix = "CenterNet_" + opt.arch
+        prefix = "3DOD_" + opt.arch
         model_path = '{:s}_{:04d}.params'.format(prefix, epoch)
         if not os.path.exists(model_path):
             save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))

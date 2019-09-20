@@ -243,7 +243,7 @@ def compute_res_loss(output, target, maski):
 def compute_bin_loss(output, target, mask):
     mask = mask.broadcast_like(output)
     output = output * mask.astype('float32')
-    return nd.softmax_cross_entropy(output, target)
+    return nd.softmax_cross_entropy(output, target).mean() / (1.0*output.size)
 
 def compute_rot_loss(output, target_bin, target_res, mask):
     # output: (B, 128, 8) [bin1_cls[0], bin1_cls[1], bin1_sin, bin1_cos,
@@ -276,7 +276,7 @@ def compute_rot_loss(output, target_bin, target_res, mask):
         loss_sin2 = compute_res_loss(valid_output2[:, 6], nd.sin(valid_target_res2[:, 1]), mask2)
         loss_cos2 = compute_res_loss(valid_output2[:, 7], nd.cos(valid_target_res2[:, 1]), mask2)
         loss_res = loss_res + loss_sin2 + loss_cos2
-
+    #print("loss_bin1: {}, loss_bin2: {}, loss_sin1: {}, loss_sin2: {}, loss_cos1: {}, loss_cos2: {}".format(loss_bin1, loss_bin2, loss_sin1, loss_sin2, loss_cos1, loss_cos2))
     return loss_bin1 + loss_bin2 + loss_res
 
 
@@ -337,6 +337,8 @@ class DddLoss(nn.Block):
         loss = opt.hm_weight * hm_loss + opt.dep_weight * dep_loss + \
                opt.dim_weight * dim_loss + opt.rot_weight * rot_loss + \
                opt.wh_weight * wh_loss + opt.off_weight * off_loss
+
+        #print("hm_loss: {}, dep_loss: {}, dim_loss: {}, rot_loss: {}, wh_loss: {}, off_loss: {}".format(hm_loss, dep_loss, dim_loss, rot_loss, wh_loss, off_loss))
 
         #loss_stats = {'loss': loss, 'hm_loss': hm_loss, 'dep_loss': dep_loss,
         #              'dim_loss': dim_loss, 'rot_loss': rot_loss,
