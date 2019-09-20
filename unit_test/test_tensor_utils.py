@@ -64,8 +64,8 @@ def get_nonzero(array):
     return indices
 
 def test_get_nonzero():
-    feat = nd.zeros(shape = (4, 2))
     '''
+    feat = nd.zeros(shape = (4, 2))
     feat[0, 0] = 1
     feat[1, 1] = 1
     feat[2, 1] = 1
@@ -77,6 +77,8 @@ def test_get_nonzero():
     feat = nd.array([[[1,1,1,0,1],[1,0,0,0,1]],
                      [[1,1,1,0,1],[1,0,0,0,1]]])
     '''
+    feat = nd.zeros(shape = (4, ))
+    feat[2] = 1
     print(feat)
 
     feat_sparse = feat.tostype('csr')
