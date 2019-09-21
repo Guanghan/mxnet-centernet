@@ -26,14 +26,18 @@ CenterNet is simpler in concept than previous single-shot object detectors:
 ### What's done
 - Implementation of these networks: (1) Hourglass, (2) Resnet18-dcn
 - 2D object detection task
-- Training and validation on COCO dataset
-- Demo of the 2D object detection task
+     + Training and validation on COCO dataset
+     + Demo of the 2D object detection task
+- 3D object detection task
+     + Training and validation on KITTI dataset
 
 ### TODO
-- Add other tasks: multi-person pose estimation, 3D object detection
+- Add other tasks: multi-person pose estimation
 - Add utility for other datasets
 
 ### Example commands
+
+#### (1) 2D Object Detection (2DOD)
 
 - Demo 2D object detection on an image folder:
 
@@ -44,16 +48,34 @@ CenterNet is simpler in concept than previous single-shot object detectors:
 - Train CenterNet with hourglass network for 2D object detection:
 
   ```Shell
-  python train.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 5e-4
+  python train.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 1e-4
   ```
 
 - Finetune CenterNet with resnet18-dcn network for 2D object detection:
 
   ```Shell
-  python train.py --gpu 0,1,2,3 --batch_size 100 --arch res_18 --num_workers 16 --lr 1e-4 \
+  python train.py --gpu 0,1,2,3 --batch_size 100 --arch res_18 --num_workers 16 --lr 5e-4 \
   --flag_finetune --pretrained_path CenterNet_res_18_0060.params
   ```
 
+#### (2) 3D Object Detection (3DOD)
+- Train CenterNet with hourglass network for 3D object detection:
+
+  ```Shell
+  python train_3dod.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 1e-4 --task ddd
+  ```
+
+- Train CenterNet with resnet18-dcn network for 3D object detection:
+
+  ```Shell
+  python train_3dod.py --gpu 0,1,2,3 --batch_size 100 --arch res_18 --num_workers 16 --lr 5e-4 --task ddd
+  ```
+
+- Validate on KITTI validation set
+
+  ```Shell
+  ./tools/kitti_eval/evaluate_object_3d_offline.out data/kitti/training/label_2/ output/results/
+  ```
 
 ## Official Implementation by Xingyi Zhou
 - PyTorch: https://github.com/xingyizhou/CenterNet
