@@ -1,4 +1,4 @@
-# CenterNet-Gluon
+# mxnet-centernet
 
 MXNet port of CenterNet (https://github.com/xingyizhou/CenterNet)
 
@@ -30,10 +30,14 @@ CenterNet is simpler in concept than previous single-shot object detectors:
      + Demo of the 2D object detection task
 - 3D object detection task
      + Training and validation on KITTI dataset
+- 2D multi-person pose estimation task
+     + Training and validation on COCO keypoints dataset
 
 ### TODO
-- Add other tasks: multi-person pose estimation
-- Add utility for other datasets
+- Refactoring
+- Gluon symbolic graph mode for faster training&testing 
+- Achieve [performance](Performance.md) on par with the original paper
+- C++ inference
 
 ### Example commands
 
@@ -45,7 +49,7 @@ CenterNet is simpler in concept than previous single-shot object detectors:
   python demo.py --arch res_18 --load_model CenterNet_res_18_0136.params --gpus 0 --demo images/
   ```
 
-- Train CenterNet with hourglass network for 2D object detection:
+- Train and Validate CenterNet with hourglass network for 2D object detection:
 
   ```Shell
   python train.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 1e-4
@@ -75,6 +79,20 @@ CenterNet is simpler in concept than previous single-shot object detectors:
 
   ```Shell
   ./tools/kitti_eval/evaluate_object_3d_offline.out data/kitti/training/label_2/ output/results/
+  ```
+
+#### (3) 2D Multi-Person Human Pose
+
+- Train and Validate CenterNet with hourglass network for 3D object detection:
+
+  ```Shell
+  python train_2dpose.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 1e-4 --task multi_pose
+  ```
+
+- Train and Validate CenterNet with resnet18-dcn network for 3D object detection:
+
+  ```Shell
+  python train_2dpose.py --gpu 0,1,2,3 --batch_size 100 --arch res_18 --num_workers 16 --lr 5e-4 --task multi_pose
   ```
 
 ## Official Implementation by Xingyi Zhou

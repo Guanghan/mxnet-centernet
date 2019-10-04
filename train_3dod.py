@@ -91,7 +91,7 @@ def train(model, train_loader, val_dataset, ctx, opt):
 
         train_hours = (time.time() - start) / 3600.0 # 1 epoch training time in hours
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
-        print("Epoch {}, time: {:.2f} hours, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
+        print("Epoch {}, time: {:.2f} hours, training loss: {:.3f}".format(epoch, train_hours, train_loss_per_epoch))
 
         # Save parameters
         prefix = "3DOD_" + opt.arch
@@ -151,6 +151,7 @@ if __name__ == "__main__":
     opt.cur_epoch = 0
     if opt.flag_finetune:
         model = load_model(model, opt.pretrained_path, ctx = ctx)
+        #model = model.load_parameters(opt.pretrained_path, ctx=ctx, ignore_extra=True, allow_missing = True)
         opt.cur_epoch = int(opt.pretrained_path.split('.')[0][-4:])
     elif opt.arch != "res_18":
         model.collect_params().initialize(init=init.Xavier(), ctx = ctx)

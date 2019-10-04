@@ -81,7 +81,7 @@ def train(model, train_loader, val_dataset, ctx, opt):
 
         train_hours = (time.time() - start) / 3600.0 # 1 epoch training time in hours
         train_loss_per_epoch = cumulative_train_loss.asscalar() / training_samples
-        print("Epoch {}, time: {:.1f} hours, training loss: {:.2f}".format(epoch, train_hours, train_loss_per_epoch))
+        print("Epoch {}, time: {:.1f} hours, training loss: {:.3f}".format(epoch, train_hours, train_loss_per_epoch))
 
         # Save parameters
         prefix = "CenterNet_" + opt.arch

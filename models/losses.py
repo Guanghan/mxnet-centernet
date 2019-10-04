@@ -344,3 +344,56 @@ class DddLoss(nn.Block):
         #              'dim_loss': dim_loss, 'rot_loss': rot_loss,
         #              'wh_loss': wh_loss, 'off_loss': off_loss}
         return loss
+
+
+
+class MultiPoseLoss(nn.Block):
+    def __init__(self, opt):
+        super(MultiPoseLoss, self).__init__()
+        self.crit = FocalLoss()
+        self.crit_hm_hp = nn.MSELoss() if opt.mse_loss else FocalLoss()
+        self.crit_kp = RegWeightedL1Loss() if not opt.dense_hp else \
+                       nn.L1Loss(reduction='sum')
+        self.crit_reg = RegL1Loss() if opt.reg_loss == 'l1' else \
+                        RegLoss() if opt.reg_loss == 'sl1' else None
+        self.opt = opt
+
+    def forward(self, outputs,
+               targets_inds,
+               targets_center, targets_2d_wh,  targets_2d_offset, targets_2d_wh_mask,
+               targets_poserel, targets_poserel_mask,
+               targets_posemap, targets_posemap_offset, targets_posemap_ind, targets_posemap_mask):
+        opt = self.opt
+        hm_loss, wh_loss, off_loss = 0, 0, 0
+        hp_loss, off_loss, hm_hp_loss, hp_offset_loss = 0, 0, 0, 0
+
+        for s in range(opt.num_stacks):
+            output = outputs[s]
+            output['hm'] = _sigmoid(output['hm'])
+
+            if opt.hm_hp and not opt.mse_loss:
+                output['hm_hp'] = _sigmoid(output['hm_hp'])
+
+            hm_loss = hm_loss + self.crit(output['hm'], targets_center) / opt.num_stacks
+            hp_loss = hp_loss + self.crit_kp(output['hps'], targets_poserel_mask, targets_inds, targets_poserel) / opt.num_stacks
+
+            if opt.wh_weight > 0:
+                wh_loss = wh_loss + self.crit_reg(output['wh'], targets_2d_wh_mask, targets_inds, targets_2d_wh) / opt.num_stacks
+
+            if opt.reg_offset and opt.off_weight > 0:
+                off_loss = off_loss + self.crit_reg(output['reg'], targets_2d_wh_mask, targets_inds, targets_2d_offset) / opt.num_stacks
+
+            if opt.reg_hp_offset and opt.off_weight > 0:
+                hp_offset_loss = hp_offset_loss + self.crit_reg(output['hp_offset'], targets_posemap_mask, targets_posemap_ind, targets_posemap_offset) / opt.num_stacks
+
+            if opt.hm_hp and opt.hm_hp_weight > 0:
+                hm_hp_loss = hm_hp_loss + self.crit_hm_hp(output['hm_hp'], targets_posemap) / opt.num_stacks
+
+        loss = opt.hm_weight * hm_loss + opt.wh_weight * wh_loss + \
+               opt.off_weight * off_loss + opt.hp_weight * hp_loss + \
+               opt.hm_hp_weight * hm_hp_loss + opt.off_weight * hp_offset_loss
+
+        #loss_stats = {'loss': loss, 'hm_loss': hm_loss, 'hp_loss': hp_loss,
+                  #'hm_hp_loss': hm_hp_loss, 'hp_offset_loss': hp_offset_loss,
+                  #'wh_loss': wh_loss, 'off_loss': off_loss}
+        return loss
