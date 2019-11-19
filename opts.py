@@ -38,6 +38,10 @@ class opts(object):
                                   'set load_model to model_last.pth '
                                   'in the exp dir if load_model is empty.')
 
+    # mode: imperative or symbolic
+    self.parser.add_argument('--mode', default='symbolic',
+                             help='choice: imperative, symbolic')
+
     # system
     self.parser.add_argument('--gpus', default='0',
                              help='-1 for CPU, use comma for multiple gpus')
@@ -306,15 +310,7 @@ class opts(object):
     opt.input_res = max(opt.input_h, opt.input_w)
     opt.output_res = max(opt.output_h, opt.output_w)
 
-    if opt.task == 'exdet':
-      # assert opt.dataset in ['coco']
-      num_hm = 1 if opt.agnostic_ex else opt.num_classes
-      opt.heads = {'hm_t': num_hm, 'hm_l': num_hm,
-                   'hm_b': num_hm, 'hm_r': num_hm,
-                   'hm_c': opt.num_classes}
-      if opt.reg_offset:
-        opt.heads.update({'reg_t': 2, 'reg_l': 2, 'reg_b': 2, 'reg_r': 2})
-    elif opt.task == 'ddd':
+    if opt.task == 'ddd':
       # assert opt.dataset in ['gta', 'kitti', 'viper']
       opt.heads = {'hm': opt.num_classes, 'dep': 1, 'rot': 8, 'dim': 3}
       if opt.reg_bbox:
@@ -348,9 +344,6 @@ class opts(object):
       'ctdet': {'default_resolution': [512, 512], 'num_classes': 80,
                 'mean': [0.408, 0.447, 0.470], 'std': [0.289, 0.274, 0.278],
                 'dataset': 'coco'},
-      'exdet': {'default_resolution': [512, 512], 'num_classes': 80,
-                'mean': [0.408, 0.447, 0.470], 'std': [0.289, 0.274, 0.278],
-                'dataset': 'coco'},
       'multi_pose': {
         'default_resolution': [512, 512], 'num_classes': 1,
         'mean': [0.408, 0.447, 0.470], 'std': [0.289, 0.274, 0.278],
@@ -361,10 +354,12 @@ class opts(object):
                 'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225],
                 'dataset': 'kitti'},
     }
+
     class Struct:
       def __init__(self, entries):
         for k, v in entries.items():
           self.__setattr__(k, v)
+
     opt = self.parse(args)
     dataset = Struct(default_dataset_info[opt.task])
     opt.dataset = dataset.dataset

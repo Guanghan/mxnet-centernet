@@ -20,6 +20,8 @@ from detectors.pose_detector import PoseDetector
 from progress.bar import Bar
 from utils.misc import AverageMeter
 
+import warnings
+
 def get_coco(opt, coco_path):
     """Get coco dataset."""
     train_dataset = CenterMultiPoseDataset(opt, split = 'train')   # custom dataset
@@ -99,11 +101,17 @@ def train(model, train_loader, val_dataset, ctx, opt):
         prefix = "2DPose_" + opt.arch
         model_path = '{:s}_{:04d}.params'.format(prefix, epoch)
         if not os.path.exists(model_path):
-            save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
+            if opt.mode != "symbolic":
+                save_model(model, '{:s}_{:04d}.params'.format(prefix, epoch))
+            else:
+                print("Save Mode: symbolic")
+                #model.export('{:s}_{:03d}'.format(prefix, epoch))
+                model.export(prefix, epoch)
 
         # validation loop
         if epoch % opt.val_interval == 0:
-            validate(model, val_dataset, opt, ctx[-1])
+            #validate(model, val_dataset, opt, ctx[-1])
+            pass
 
 
 def validate(model, dataset, opt, ctx):
@@ -149,15 +157,33 @@ if __name__ == "__main__":
     """ 1. network """
     print('Creating model...')
     print("Using network architecture: ", opt.arch)
-    model = create_model(opt.arch, opt.heads, opt.head_conv, ctx = ctx)
 
-    opt.cur_epoch = 0
-    if opt.flag_finetune:
-        model = load_model(model, opt.pretrained_path, ctx = ctx)
-        #model = model.load_parameters(opt.pretrained_path, ctx=ctx, ignore_extra=True, allow_missing = True)
-        opt.cur_epoch = int(opt.pretrained_path.split('.')[0][-4:])
-    elif opt.arch != "res_18":
-        model.collect_params().initialize(init=init.Xavier(), ctx = ctx)
+    if opt.mode == "symbolic":
+        print("Mode: symbolic")
+        if opt.flag_finetune:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                opt.cur_epoch = int(opt.pretrained_path.split('.')[0][-4:])
+                params_path = opt.pretrained_path
+                json_path = opt.pretrained_path[:-11] + "symbol.json"
+                model = gluon.nn.SymbolBlock.imports(json_path, ['data'], params_path, ctx=ctx)
+        else:
+            opt.cur_epoch = 0
+            autograd.set_training(0)
+            model = create_model(opt.arch, opt.heads, opt.head_conv, ctx = ctx)
+            model.hybridize()
+            autograd.set_training(1)
+    else:
+        print("Mode: imperative")
+        opt.cur_epoch = 0
+        model = create_model(opt.arch, opt.heads, opt.head_conv, ctx = ctx)
+        if opt.flag_finetune:
+            model = load_model(model, opt.pretrained_path, ctx = ctx)
+            #model = model.load_parameters(opt.pretrained_path, ctx=ctx, ignore_extra=True, allow_missing = True)
+            opt.cur_epoch = int(opt.pretrained_path.split('.')[0][-4:])
+        elif opt.arch != "res_18":
+            model.collect_params().initialize(init=init.Xavier(), ctx = ctx)
+
 
     """ 2. Dataset """
     train_dataset, val_dataset = get_coco(opt, "./data/coco")

@@ -114,27 +114,27 @@ class BaseDetector(object):
 
             images = images.as_in_context(self.ctx)
 
-            nd.waitall()
+            #nd.waitall()
             pre_process_time = time.time()
             pre_time += pre_process_time - scale_start_time
 
             output, dets, forward_time = self.process(images, return_time=True)
 
-            nd.waitall()
+            #nd.waitall()
             net_time += forward_time - pre_process_time
             decode_time = time.time()
             dec_time += decode_time - forward_time
 
             dets = self.post_process(dets, meta, scale)
 
-            nd.waitall()
+            #nd.waitall()
             post_process_time = time.time()
             post_time += post_process_time - decode_time
 
             detections.append(dets)
 
         results = self.merge_outputs(detections)
-        nd.waitall()
+        #nd.waitall()
         end_time = time.time()
         merge_time += end_time - post_process_time
         tot_time += end_time - start_time

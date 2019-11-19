@@ -28,10 +28,9 @@ def _gather_feat(feat, ind, mask=None):
     flatten_ind = ind.flatten()
     for i in range(batch_size):
         if i == 0:
-            output = feat[i, ind[i]].expand_dims(2)
+            output = feat[i, ind[i]].expand_dims(2)   # similar to nd.pick
         else:
             output = nd.concat(output, feat[i, ind[i]].expand_dims(2), dim=2)
-
     output = output.swapaxes(dim1 = 1, dim2 = 2)
     return output
 
@@ -62,3 +61,46 @@ def flip_lr_off(x, flip_idx):
     tmp[:, e[0], ...], tmp[:, e[1], ...] = \
       tmp[:, e[1], ...].copy(), tmp[:, e[0], ...].copy()
   return nd.array(tmp.reshape(shape)).to(x.device)
+
+
+def symbolic_gather_feat(F, feat, ind, K, attri=1, mask=None):
+    batch = 1
+    #print("In symbolic_gather_feat, feat.shape = ", feat.shape)
+    #print("In symbolic_gather_feat, ind.shape = ", ind.shape)
+
+    if attri == 1:
+        data = feat.reshape((batch, -1))
+        index = ind.reshape((batch, -1))
+    else:
+        data = feat.reshape((batch, attri, -1))
+        data = F.swapaxes(data, 1, 2)
+        index = ind.reshape((batch, -1))
+
+    #print("In symbolic_gather_feat, data.shape = ", data.shape)
+    #print("In symbolic_gather_feat, index.shape = ", index.shape)
+    temp = F.take(data, index, axis = 1, mode='wrap')
+    #print("In symbolic_gather_feat, temp.shape = ", temp.shape)
+
+    '''
+    aa = F.split(temp, axis=2, num_outputs= K)
+    print(aa[0].shape)
+    bb = [F.linalg.extractdiag(F.squeeze(item)) for item in aa]
+    output = F.stack(*bb).expand_dims(2)
+    print(output.shape)
+    '''
+
+    # or simply:
+    if attri == 1:
+        output= temp.reshape((batch, K))
+    else:
+        output= temp.reshape((batch, K, attri))
+    return output
+
+def symbolic_transpose_and_gather_feat(F, feat, ind, K, batch, cat, attri):
+    #print("In symbolic_transpose_and_gather_feat, feat.shape = ", feat.shape)
+    feat = F.transpose(feat, axes=(0, 2, 3, 1))
+    feat = F.reshape(feat, shape=(batch, -1, cat))
+    #print("In symbolic_transpose_and_gather_feat, feat.shape = ", feat.shape)
+
+    feat = symbolic_gather_feat(F, feat, ind, K, attri)
+    return feat

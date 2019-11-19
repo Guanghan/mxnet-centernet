@@ -35,7 +35,7 @@ CenterNet is simpler in concept than previous single-shot object detectors:
 
 ### TODO
 - Refactoring
-- Gluon symbolic graph mode for faster training&testing 
+- Gluon symbolic graph mode for faster training&testing
 - Achieve [performance](Performance.md) on par with the original paper
 - C++ inference
 
@@ -83,13 +83,13 @@ CenterNet is simpler in concept than previous single-shot object detectors:
 
 #### (3) 2D Multi-Person Human Pose
 
-- Train and Validate CenterNet with hourglass network for 3D object detection:
+- Train and Validate CenterNet with hourglass network for 2D multi-person pose estimation:
 
   ```Shell
   python train_2dpose.py --gpu 0,1,2,3 --batch_size 24 --arch hourglass --num_workers 8 --lr 1e-4 --task multi_pose
   ```
 
-- Train and Validate CenterNet with resnet18-dcn network for 3D object detection:
+- Train and Validate CenterNet with resnet18-dcn network for 2D multi-person pose estimation:
 
   ```Shell
   python train_2dpose.py --gpu 0,1,2,3 --batch_size 100 --arch res_18 --num_workers 16 --lr 5e-4 --task multi_pose
